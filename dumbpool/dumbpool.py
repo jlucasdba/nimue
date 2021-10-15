@@ -3,13 +3,14 @@ import sys
 import threading
 
 class DumbPoolHealthCheckThread(threading.Thread):
-  def __init__(self,dbmodule,exitevent,lock,pool,free):
+  def __init__(self,owner):
     super().__init__()
-    self.dbmodule=dbmodule
-    self.exitevent=exitevent
-    self.lock=lock
-    self.pool=pool
-    self.free=free
+    self.dbmodule=owner.dbmodule
+    self.exitevent=owner._exitevent
+    self.lock=owner._lock
+    self.pool=owner._pool
+    self.free=owner._free
+    self.owner=owner
 
   def run(self):
     while(not self.exitevent.wait(timeout=60)):
@@ -44,7 +45,7 @@ class DumbPool(object):
       self._addconnection()
 
     self._exitevent=threading.Event()
-    self._healthcheckthread=DumbPoolHealthCheckThread(self.dbmodule,self._exitevent,self._lock,self._pool,self._free)
+    self._healthcheckthread=DumbPoolHealthCheckThread(self)
     self._healthcheckthread.start()
 
   def __del__(self):
