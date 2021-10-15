@@ -1,11 +1,11 @@
 import datetime
-import psycopg2
 import sys
 import threading
 
 class DumbPoolHealthCheckThread(threading.Thread):
-  def __init__(self,exitevent,lock,pool,free):
+  def __init__(self,dbmodule,exitevent,lock,pool,free):
     super().__init__()
+    self.dbmodule=dbmodule
     self.exitevent=exitevent
     self.lock=lock
     self.pool=pool
@@ -21,14 +21,15 @@ class DumbPoolHealthCheckThread(threading.Thread):
         for x in sorted(dead,reverse=True):
           del self.free[x]
         for x in dead:
-          member=PoolMember(conn=psycopg2.connect(**self.kwargs))
+          member=PoolMember(conn=self.dbmodule.connect(**self.kwargs))
           with self._lock:
             self._pool[member]=1
             self._free.insert(0,member)
             self._lock.notify()
 
 class DumbPool(object):
-  def __init__(self,initial=10,max=20,**kwargs):
+  def __init__(self,dbmodule,initial=10,max=20,**kwargs):
+    self.dbmodule=dbmodule
     self.initial=initial
     self.max=max
 
@@ -43,7 +44,7 @@ class DumbPool(object):
       self._addconnection()
 
     self._exitevent=threading.Event()
-    self._healthcheckthread=DumbPoolHealthCheckThread(self._exitevent,self._lock,self._pool,self._free)
+    self._healthcheckthread=DumbPoolHealthCheckThread(self.dbmodule,self._exitevent,self._lock,self._pool,self._free)
     self._healthcheckthread.start()
 
   def __del__(self):
@@ -56,7 +57,7 @@ class DumbPool(object):
     self.close()
 
   def _addconnection(self):
-    member=PoolMember(conn=psycopg2.connect(**self.kwargs))
+    member=PoolMember(conn=self.dbmodule.connect(**self.kwargs))
     with self._lock:
       self._pool[member]=1
       self._free.insert(0,member)
