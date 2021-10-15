@@ -10,7 +10,8 @@ class DumbPoolHealthCheckThread(threading.Thread):
     self.lock=owner._lock
     self.pool=owner._pool
     self.free=owner._free
-    self.kwargs=owner.kwargs
+    self.connargs=owner.connargs
+    self.connkwargs=owner.connkwargs
     self.owner=owner
 
   def run(self):
@@ -23,19 +24,23 @@ class DumbPoolHealthCheckThread(threading.Thread):
         for x in sorted(dead,reverse=True):
           del self.free[x]
         for x in dead:
-          member=PoolMember(conn=self.dbmodule.connect(**self.kwargs))
+          member=PoolMember(conn=self.dbmodule.connect(*self.connargs,**self.connkwargs))
           with self.lock:
             self.pool[member]=1
             self.free.insert(0,member)
             self.lock.notify()
 
 class DumbPool(object):
-  def __init__(self,dbmodule,initial=10,max=20,**kwargs):
+  def __init__(self,dbmodule,connargs=None,connkwargs=None,initial=10,max=20):
     self.dbmodule=dbmodule
+    self.connargs=connargs
+    if self.connargs is None:
+      self.connargs=[]
+    self.connkwargs=connkwargs
+    if self.connkwargs is None:
+      self.connkwargs={}
     self.initial=initial
     self.max=max
-
-    self.kwargs=kwargs
 
     self._pool={}
     self._free=[]
@@ -59,7 +64,7 @@ class DumbPool(object):
     self.close()
 
   def _addconnection(self):
-    member=PoolMember(conn=self.dbmodule.connect(**self.kwargs))
+    member=PoolMember(conn=self.dbmodule.connect(*self.connargs,**self.connkwargs))
     with self._lock:
       self._pool[member]=1
       self._free.insert(0,member)
