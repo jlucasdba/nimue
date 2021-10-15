@@ -10,6 +10,7 @@ class DumbPoolHealthCheckThread(threading.Thread):
     self.lock=owner._lock
     self.pool=owner._pool
     self.free=owner._free
+    self.kwargs=owner.kwargs
     self.owner=owner
 
   def run(self):
