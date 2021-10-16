@@ -24,11 +24,7 @@ class DumbPoolHealthCheckThread(threading.Thread):
         for x in sorted(dead,reverse=True):
           del self.free[x]
         for x in dead:
-          member=PoolMember(conn=self.dbmodule.connect(*self.connargs,**self.connkwargs))
-          with self.lock:
-            self.pool[member]=1
-            self.free.insert(0,member)
-            self.lock.notify()
+          self.owner._addconnection()
 
 class DumbPool(object):
   def __init__(self,dbmodule,connargs=None,connkwargs=None,initial=10,max=20):
