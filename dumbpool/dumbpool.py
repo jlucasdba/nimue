@@ -63,6 +63,7 @@ class DumbPool(object):
           dead.append(x[0])
       for x in sorted(dead,reverse=True):
         del self._free[x]
+        logger.warn("Closing dead connection in slot %d" % x)
       for x in dead:
         self._addconnection()
 
