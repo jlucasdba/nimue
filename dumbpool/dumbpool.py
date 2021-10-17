@@ -106,8 +106,11 @@ class PoolMember(object):
       curs.execute("select 1")
       self.conn.rollback()
       curs.close()
+    except self.dbmodule.OperationalError:
+      r=False
     except:
       r=False
+      logger.exception('Unexpected exception during healthcheck. Connection will be invalidated.')
     self.check_time=datetime.datetime.now()
     return r
 
