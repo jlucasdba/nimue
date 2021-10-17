@@ -5,26 +5,12 @@ import threading
 class DumbPoolHealthCheckThread(threading.Thread):
   def __init__(self,owner):
     super().__init__()
-    self.dbmodule=owner.dbmodule
     self.exitevent=owner._exitevent
-    self.lock=owner._lock
-    self.pool=owner._pool
-    self.free=owner._free
-    self.connargs=owner.connargs
-    self.connkwargs=owner.connkwargs
     self.owner=owner
 
   def run(self):
     while(not self.exitevent.wait(timeout=60)):
-      with self.lock:
-        dead=[]
-        for x in enumerate(self.free):
-          if not x[1].healthcheck():
-            dead.append(x[0])
-        for x in sorted(dead,reverse=True):
-          del self.free[x]
-        for x in dead:
-          self.owner._addconnection()
+      self.owner._healthcheckpool()
 
 class DumbPool(object):
   def __init__(self,dbmodule,connargs=None,connkwargs=None,initial=10,max=20):
@@ -60,11 +46,22 @@ class DumbPool(object):
     self.close()
 
   def _addconnection(self):
-    member=PoolMember(conn=self.dbmodule.connect(*self.connargs,**self.connkwargs))
+    member=PoolMember(dbmodule=self.dbmodule,conn=self.dbmodule.connect(*self.connargs,**self.connkwargs))
     with self._lock:
       self._pool[member]=1
       self._free.insert(0,member)
       self._lock.notify()
+
+  def _healthcheckpool(self):
+    with self._lock:
+      dead=[]
+      for x in enumerate(self._free):
+        if not x[1].healthcheck():
+          dead.append(x[0])
+      for x in sorted(dead,reverse=True):
+        del self._free[x]
+      for x in dead:
+        self._addconnection()
 
   def getconnection(self):
     with self._lock:
@@ -91,7 +88,8 @@ class DumbPool(object):
     self._healthcheckthread.join()
 
 class PoolMember(object):
-  def __init__(self,conn):
+  def __init__(self,dbmodule,conn):
+    self.dbmodule=dbmodule
     self.conn=conn
     self.create_time=datetime.datetime.now()
     self.touch_time=self.create_time
