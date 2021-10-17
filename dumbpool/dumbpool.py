@@ -1,6 +1,9 @@
 import datetime
+import logging
 import sys
 import threading
+
+logger = logging.getLogger(__name__)
 
 class DumbPoolHealthCheckThread(threading.Thread):
   def __init__(self,owner):
