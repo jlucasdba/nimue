@@ -121,6 +121,7 @@ class PoolConnection(object):
   def __init__(self,pool,member):
     self._member=member
     self._pool=pool
+    self._closed=False
     self._conn=member.conn
 
   def __getattr__(self,attr):
@@ -129,7 +130,7 @@ class PoolConnection(object):
     return getattr(self._conn,attr)
 
   def __setattr__(self,attr,value):
-    if attr in ('_pool','_conn','_member'):
+    if attr in ('_pool','_conn','_member','_closed'):
       self.__dict__[attr]=value
     else:
       self._conn.__dict__[attr]=value
@@ -141,6 +142,10 @@ class PoolConnection(object):
     self.close()
 
   def close(self):
+    # if _closed is True, we do nothing and return
+    if self._closed:
+      return
+
     self._conn.rollback()
     with self._pool._lock:
       del self._pool._use[self._member]
@@ -148,3 +153,4 @@ class PoolConnection(object):
       self._pool._lock.notify()
     # explicitly remove reference back to pool
     del self._pool
+    self._closed=True
