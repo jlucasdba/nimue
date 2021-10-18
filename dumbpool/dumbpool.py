@@ -121,7 +121,7 @@ class PoolConnection(object):
   def __init__(self,pool,member):
     self._member=member
     self._pool=pool
-    self.__dict__['_conn']=member.conn
+    self._conn=member.conn
 
   def __getattr__(self,attr):
     if attr in self.__dict__:
