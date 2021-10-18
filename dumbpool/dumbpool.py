@@ -151,6 +151,8 @@ class PoolConnection(object):
       del self._pool._use[self._member]
       self._pool._free.insert(0,self._member)
       self._pool._lock.notify()
-    # explicitly remove reference back to pool
+    # explicitly remove references to other objects
+    del self._member
     del self._pool
+    del self._conn
     self._closed=True
