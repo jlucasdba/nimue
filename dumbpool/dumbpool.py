@@ -136,10 +136,11 @@ class PoolConnection(object):
       self._conn.__dict__[attr]=value
 
   def __enter__(self):
+    self._conn.__enter__()
     return self
 
   def __exit__(self,exc_type,exc_value,traceback):
-    self.close()
+    self._conn.__exit__(exc_type,exc_value,traceback)
 
   def close(self):
     # if _closed is True, we do nothing and return
