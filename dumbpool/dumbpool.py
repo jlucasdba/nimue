@@ -2,6 +2,7 @@ import datetime
 import logging
 import sys
 import threading
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -67,20 +68,40 @@ class DumbPool(object):
       for x in dead:
         self._addconnection()
 
-  def getconnection(self):
+  def getconnection(self,blocking=True,timeout=None):
+    if timeout is not None and timeout < 0:
+      raise Exception("Timeout must be 0 or greater")
+    if timeout is None:
+      timeout=-1  # this is the value Lock expects
+
+    # Capture the time we entered the function
+    entertime=time.monotonic()
+    r=self._lock.acquire(blocking,timeout)
+    # If we weren't able to acquire the lock in given timeframe, give up
+    if not r:
+      return None
+
+    # At this point we have the lock - the context manager ensures we release it
     with self._lock:
+      # if there's a free connection in the pool, we are good
       if len(self._free) > 0:
         member=self._free.pop(0)
         self._use[member]=1
         return PoolConnection(self,member)
+      # if there's room to add a new connection, we are also good
       elif len(self._pool.keys()) < self.max:
         member=self._addconnection()
         member=self._free.pop(0)
         self._use[member]=1
         return PoolConnection(self,member)
+      # but if neither of those are true, now we have to wait
+      # (or give up if blocking is False)
       else:
-        while(len(self._free) <= 0):
-          self._lock.wait()
+        if not blocking:
+          return None
+        r=self._lock.wait_for(len(self._free) > 0,timeout-(time.monotonic()-entertime))
+        if not r:
+          return None
         member=self._free.pop(0)
         self._use[member]=1
         return PoolConnection(self,member)
