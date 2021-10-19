@@ -1,3 +1,4 @@
+import contextlib
 import datetime
 import logging
 import sys
@@ -82,7 +83,8 @@ class DumbPool(object):
       return None
 
     # At this point we have the lock - the context manager ensures we release it
-    with self._lock:
+    with contextlib.ExitStack() as stack:
+      stack.push(self._lock)
       # if there's a free connection in the pool, we are good
       if len(self._free) > 0:
         member=self._free.pop(0)
