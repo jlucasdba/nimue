@@ -7,7 +7,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
-class DumbPoolHealthCheckThread(threading.Thread):
+class NimueHealthCheckThread(threading.Thread):
   def __init__(self,owner):
     super().__init__()
     self.exitevent=owner._exitevent
@@ -17,7 +17,7 @@ class DumbPoolHealthCheckThread(threading.Thread):
     while(not self.exitevent.wait(timeout=60)):
       self.owner._healthcheckpool()
 
-class DumbPool(object):
+class NimuePool(object):
   def __init__(self,dbmodule,connargs=None,connkwargs=None,initial=10,max=20):
     self.dbmodule=dbmodule
     self.connargs=connargs
@@ -38,7 +38,7 @@ class DumbPool(object):
       self._addconnection()
 
     self._exitevent=threading.Event()
-    self._healthcheckthread=DumbPoolHealthCheckThread(self)
+    self._healthcheckthread=NimueHealthCheckThread(self)
     self._healthcheckthread.start()
 
   def __del__(self):
@@ -51,7 +51,7 @@ class DumbPool(object):
     self.close()
 
   def _addconnection(self):
-    member=PoolMember(dbmodule=self.dbmodule,conn=self.dbmodule.connect(*self.connargs,**self.connkwargs))
+    member=NimuePoolMember(dbmodule=self.dbmodule,conn=self.dbmodule.connect(*self.connargs,**self.connkwargs))
     with self._lock:
       self._pool[member]=1
       self._free.insert(0,member)
@@ -89,13 +89,13 @@ class DumbPool(object):
       if len(self._free) > 0:
         member=self._free.pop(0)
         self._use[member]=1
-        return PoolConnection(self,member)
+        return NimueConnection(self,member)
       # if there's room to add a new connection, we are also good
       elif len(self._pool.keys()) < self.max:
         member=self._addconnection()
         member=self._free.pop(0)
         self._use[member]=1
-        return PoolConnection(self,member)
+        return NimueConnection(self,member)
       # but if neither of those are true, now we have to wait
       # (or give up if blocking is False)
       else:
@@ -106,7 +106,7 @@ class DumbPool(object):
           return None
         member=self._free.pop(0)
         self._use[member]=1
-        return PoolConnection(self,member)
+        return NimueConnection(self,member)
 
   def close(self):
     for x in self._pool.keys():
@@ -114,7 +114,7 @@ class DumbPool(object):
     self._exitevent.set()
     self._healthcheckthread.join()
 
-class PoolMember(object):
+class NimuePoolMember(object):
   def __init__(self,dbmodule,conn):
     self.dbmodule=dbmodule
     self.conn=conn
@@ -140,7 +140,7 @@ class PoolMember(object):
   def touch(self):
     self.touch_time=datetime.datetime.now()
 
-class PoolConnection(object):
+class NimueConnection(object):
   def __init__(self,pool,member):
     self._member=member
     self._pool=pool
