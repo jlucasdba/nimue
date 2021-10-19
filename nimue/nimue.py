@@ -17,7 +17,7 @@ class NimueHealthCheckThread(threading.Thread):
     while(not self.exitevent.wait(timeout=60)):
       self.owner._healthcheckpool()
 
-class NimuePool(object):
+class NimueConnectionPool(object):
   def __init__(self,dbmodule,connargs=None,connkwargs=None,initial=10,max=20):
     self.dbmodule=dbmodule
     self.connargs=connargs
@@ -51,7 +51,7 @@ class NimuePool(object):
     self.close()
 
   def _addconnection(self):
-    member=NimuePoolMember(dbmodule=self.dbmodule,conn=self.dbmodule.connect(*self.connargs,**self.connkwargs))
+    member=NimueConnectionPoolMember(dbmodule=self.dbmodule,conn=self.dbmodule.connect(*self.connargs,**self.connkwargs))
     with self._lock:
       self._pool[member]=1
       self._free.insert(0,member)
@@ -114,7 +114,7 @@ class NimuePool(object):
     self._exitevent.set()
     self._healthcheckthread.join()
 
-class NimuePoolMember(object):
+class NimueConnectionPoolMember(object):
   def __init__(self,dbmodule,conn):
     self.dbmodule=dbmodule
     self.conn=conn
