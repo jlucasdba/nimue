@@ -7,7 +7,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
-class NimueHealthCheckThread(threading.Thread):
+class NimueCleanupThread(threading.Thread):
   def __init__(self,owner):
     super().__init__()
     self.exitevent=owner._exitevent
@@ -38,7 +38,7 @@ class NimueConnectionPool(object):
       self._addconnection()
 
     self._exitevent=threading.Event()
-    self._healthcheckthread=NimueHealthCheckThread(self)
+    self._healthcheckthread=NimueCleanupThread(self)
     self._healthcheckthread.start()
 
   def __del__(self):
