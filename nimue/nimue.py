@@ -135,7 +135,6 @@ class NimueConnectionPool(object):
         for x in range(0,addtarget):
           self._addconnection()
 
-
   def getconnection(self,blocking=True,timeout=None):
     if timeout is not None and timeout < 0:
       raise Exception("Timeout must be 0 or greater")
@@ -177,6 +176,13 @@ class NimueConnectionPool(object):
         member=self._free.pop(0)
         self._use[member]=1
         return NimueConnection(self,member)
+
+  def poolstats(self):
+    with self._lock:
+      poolsize=len(self._pool)
+      poolused=len(self._use)
+      poolfree=len(self._free)
+      return NimueConnectionPoolStats(poolsize,poolused,poolfree)
 
   def close(self):
     # shutdown the cleanup thread
@@ -272,3 +278,9 @@ class NimueConnection(object):
     del self._pool
     del self._conn
     self._closed=True
+
+def NimueConnectionPoolStats(object):
+  def __init__(self,poolsize,poolused,poolfree):
+    self.poolsize=poolsize
+    self.poolused=poolused
+    self.poolfree=poolfree
