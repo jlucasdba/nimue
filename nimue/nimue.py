@@ -120,8 +120,11 @@ class NimueConnectionPool(object):
     # At this point we have the lock - the context manager ensures we release it
     with contextlib.ExitStack() as stack:
       stack.push(self._lock)
+      # if _exitevent has been set, the pool is being torn down, so raise an exception
+      if self._exitevent.is_set():
+        raise Exception("Pool %s has already been closed." % self)
       # if there's a free connection in the pool, we are good
-      if len(self._free) > 0:
+      elif len(self._free) > 0:
         member=self._free.pop(0)
         self._use[member]=1
         return NimueConnection(self,member)
@@ -144,10 +147,25 @@ class NimueConnectionPool(object):
         return NimueConnection(self,member)
 
   def close(self):
-    for x in self._pool.keys():
-      x.conn.close() 
+    # shutdown the cleanup thread
     self._exitevent.set()
     self._healthcheckthread.join()
+
+    with self._lock:
+      for x in sorted(enumerate(self._free),key=lambda z: z[0],reverse=True):
+        x[1].close()
+        del self._pool[x[1]]
+        del self._free[x[0]]
+
+      while len(self._use) > 0:
+        logger.debug("Size of _pool is: %d" % len(self._pool))
+        logger.debug("Size of _free is: %d" % len(self._free))
+        logger.debug("Size of _use is: %d" % len(self._use))
+        self._lock.wait_for(lambda: len(self._free) > 0)
+        for x in sorted(enumerate(self._free),key=lambda z: z[0],reverse=True):
+          x[1].close()
+          del self._pool[x[1]]
+          del self._free[x]
 
 class NimueConnectionPoolMember(object):
   def __init__(self,dbmodule,conn):
@@ -174,6 +192,9 @@ class NimueConnectionPoolMember(object):
 
   def touch(self):
     self.touch_time=time.monotonic()
+
+  def close(self):
+    self.conn.close()
 
 class NimueConnection(object):
   def __init__(self,pool,member):
