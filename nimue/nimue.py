@@ -201,39 +201,39 @@ class NimueConnectionPool(object):
 
 class NimueConnectionPoolMember(object):
   def __init__(self,dbmodule,conn):
-    self.dbmodule=dbmodule
-    self.conn=conn
-    self.create_time=time.monotonic()
-    self.touch_time=self.create_time
-    self.check_time=self.create_time
+    self._dbmodule=dbmodule
+    self._conn=conn
+    self._create_time=time.monotonic()
+    self._touch_time=self._create_time
+    self._check_time=self._create_time
 
   def healthcheck(self):
     r=True
     try:
-      curs=self.conn.cursor()
+      curs=self._conn.cursor()
       curs.execute("select 1")
-      self.conn.rollback()
+      self._conn.rollback()
       curs.close()
-    except self.dbmodule.OperationalError:
+    except self._dbmodule.OperationalError:
       r=False
     except:
       r=False
       logger.exception('Unexpected exception during healthcheck. Connection will be invalidated.')
-    self.check_time=time.monotonic()
+    self._check_time=time.monotonic()
     return r
 
   def touch(self):
-    self.touch_time=time.monotonic()
+    self._touch_time=time.monotonic()
 
   def close(self):
-    self.conn.close()
+    self._conn.close()
 
 class NimueConnection(object):
   def __init__(self,pool,member):
     self._member=member
     self._pool=pool
     self._closed=False
-    self._conn=member.conn
+    self._conn=member._conn
 
   def __getattr__(self,attr):
     if attr in self.__dict__:
