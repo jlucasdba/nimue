@@ -34,6 +34,11 @@ class NimueConnectionPool(object):
     self._use={}
     self._lock=threading.Condition()
 
+    # stats counters
+    self._connections_cleaned_dead=0
+    self._connections_cleaned_idle=0
+    self._cleanup_cycles=0
+
     while len(self._pool) < self._initial:
       self._addconnection()
 
@@ -116,6 +121,7 @@ class NimueConnectionPool(object):
         del self._pool[self._free[x]]
         del self._free[x]
         logger.warn("Closing dead connection in slot %d" % x)
+        self._connections_cleaned_dead+=1
 
       # figure out the maximum idle connections we can remove
       idletarget=len(self._pool)-self._initial
@@ -138,12 +144,14 @@ class NimueConnectionPool(object):
             pass
           del self._pool[free[x]]
           del self._free[x]
+          self._connections_cleaned_idle+=1
 
       # add connections till we get back up to _initial
       addtarget=self._initial - len(self._pool)
       if addtarget > 0:
         for x in range(0,addtarget):
           self._addconnection()
+    self._cleanup_cycles+=1
 
   def getconnection(self,blocking=True,timeout=None):
     if timeout is not None and timeout < 0:
@@ -192,7 +200,7 @@ class NimueConnectionPool(object):
       poolsize=len(self._pool)
       poolused=len(self._use)
       poolfree=len(self._free)
-      return NimueConnectionPoolStats(poolsize,poolused,poolfree)
+      return NimueConnectionPoolStats(poolsize,poolused,poolfree,self._connections_cleaned_dead,self._connections_cleaned_idle,self._cleanup_cycles)
 
   def close(self):
     # shutdown the cleanup thread
@@ -290,7 +298,10 @@ class NimueConnection(object):
     self._closed=True
 
 def NimueConnectionPoolStats(object):
-  def __init__(self,poolsize,poolused,poolfree):
+  def __init__(self,poolsize,poolused,poolfree,connections_cleaned_dead,connections_cleaned_idle,cleanup_cycles):
     self.poolsize=poolsize
     self.poolused=poolused
     self.poolfree=poolfree
+    self.connections_cleaned_dead=connections_cleaned_dead
+    self.connections_cleaned_idle=connections_cleaned_idle
+    self.cleanup_cycles=cleanup_cycles
