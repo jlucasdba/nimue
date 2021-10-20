@@ -64,6 +64,11 @@ class NimueConnectionPool(object):
         if not x[1].healthcheck():
           dead.append(x[0])
       for x in sorted(dead,reverse=True):
+        try:
+          self._free[x].close()
+        except:
+          pass
+        del self._pool[free[x]]
         del self._free[x]
         logger.warn("Closing dead connection in slot %d" % x)
       for x in dead:
