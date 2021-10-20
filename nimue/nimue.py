@@ -158,6 +158,9 @@ class NimueConnection(object):
     else:
       self._conn.__dict__[attr]=value
 
+  def __del__(self):
+    self.close()
+
   def __enter__(self):
     self._conn.__enter__()
     return self
