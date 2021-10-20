@@ -1,5 +1,4 @@
 import contextlib
-import datetime
 import logging
 import sys
 import threading
@@ -119,7 +118,7 @@ class NimueConnectionPoolMember(object):
   def __init__(self,dbmodule,conn):
     self.dbmodule=dbmodule
     self.conn=conn
-    self.create_time=datetime.datetime.now()
+    self.create_time=time.monotonic()
     self.touch_time=self.create_time
     self.check_time=self.create_time
 
@@ -135,11 +134,11 @@ class NimueConnectionPoolMember(object):
     except:
       r=False
       logger.exception('Unexpected exception during healthcheck. Connection will be invalidated.')
-    self.check_time=datetime.datetime.now()
+    self.check_time=time.monotonic()
     return r
 
   def touch(self):
-    self.touch_time=datetime.datetime.now()
+    self.touch_time=time.monotonic()
 
 class NimueConnection(object):
   def __init__(self,pool,member):
