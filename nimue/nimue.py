@@ -174,6 +174,7 @@ class NimueConnection(object):
     with self._pool._lock:
       del self._pool._use[self._member]
       self._pool._free.insert(0,self._member)
+      self._member.touch()
       self._pool._lock.notify()
     # explicitly remove references to other objects
     del self._member
