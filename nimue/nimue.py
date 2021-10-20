@@ -59,7 +59,10 @@ class NimueConnectionPool(object):
 
   def _healthcheckpool(self):
     with self._lock:
+      idle=[]
       dead=[]
+
+      # identify and clear dead connections
       for x in enumerate(self._free):
         if not x[1].healthcheck():
           dead.append(x[0])
@@ -68,11 +71,38 @@ class NimueConnectionPool(object):
           self._free[x].close()
         except:
           pass
-        del self._pool[free[x]]
+        del self._pool[self._free[x]]
         del self._free[x]
         logger.warn("Closing dead connection in slot %d" % x)
-      for x in dead:
-        self._addconnection()
+
+      # figure out the maximum idle connections we can remove
+      idletarget=len(self._pool)-self.initial
+      if len(self._free) < idletarget:
+        idletarget=len(self._free)
+
+      # if we can possibly remove any connections, proceed
+      if idletarget > 0:
+        # identify idle connections that are removal candidates
+        now=time.monotonic()
+        for x in enumerate(self._free):
+          if now-x[1].touch_time > 10:
+            idle.append(x[0])
+
+        # remove oldest idle connections up to idletarget
+        for x in sorted(sorted(idle,key=lambda z: (self._free[z].touch_time, self._free[z].create_time), reverse=True)[0:idletarget],reverse=True):
+          try:
+            self._free[x].close()
+          except:
+            pass
+          del self._pool[free[x]]
+          del self._free[x]
+
+      # add connections till we get back up to initial
+      addtarget=self.initial - len(self._pool)
+      if addtarget > 0:
+        for x in range(0,addtarget):
+          self._addconnection()
+
 
   def getconnection(self,blocking=True,timeout=None):
     if timeout is not None and timeout < 0:
