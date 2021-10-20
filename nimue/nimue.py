@@ -19,22 +19,22 @@ class NimueCleanupThread(threading.Thread):
 
 class NimueConnectionPool(object):
   def __init__(self,dbmodule,connargs=None,connkwargs=None,initial=10,max=20,cleanup_interval=60):
-    self.dbmodule=dbmodule
-    self.connargs=connargs
-    if self.connargs is None:
-      self.connargs=[]
-    self.connkwargs=connkwargs
-    if self.connkwargs is None:
-      self.connkwargs={}
-    self.initial=initial
-    self.max=max
+    self._dbmodule=dbmodule
+    self._connargs=connargs
+    if self._connargs is None:
+      self._connargs=[]
+    self._connkwargs=connkwargs
+    if self._connkwargs is None:
+      self._connkwargs={}
+    self._initial=initial
+    self._max=max
 
     self._pool={}
     self._free=[]
     self._use={}
     self._lock=threading.Condition()
 
-    while len(self._pool) < self.initial:
+    while len(self._pool) < self._initial:
       self._addconnection()
 
     self._exitevent=threading.Event()
@@ -50,8 +50,40 @@ class NimueConnectionPool(object):
   def __exit__(self,exc_type,exc_value,traceback):
     self.close()
 
+  @property
+  def dbmodule(self):
+    return self._dbmodule
+
+  @property
+  def connargs(self):
+    return self._connargs
+
+  @property
+  def connkwargs(self):
+    return self._connkwargs
+
+  @property
+  def initial(self):
+    with self._lock:
+      return self._initial
+
+  @initial.setter
+  def initial(self,val):
+    with self._lock:
+      self._initial=val
+
+  @property
+  def max(self):
+    with self._lock:
+      return self._max
+
+  @max.setter
+  def max(self,val):
+    with self._lock:
+      self._max=val
+
   def _addconnection(self):
-    member=NimueConnectionPoolMember(dbmodule=self.dbmodule,conn=self.dbmodule.connect(*self.connargs,**self.connkwargs))
+    member=NimueConnectionPoolMember(dbmodule=self._dbmodule,conn=self._dbmodule.connect(*self._connargs,**self._connkwargs))
     with self._lock:
       self._pool[member]=1
       self._free.insert(0,member)
@@ -76,7 +108,7 @@ class NimueConnectionPool(object):
         logger.warn("Closing dead connection in slot %d" % x)
 
       # figure out the maximum idle connections we can remove
-      idletarget=len(self._pool)-self.initial
+      idletarget=len(self._pool)-self._initial
       if len(self._free) < idletarget:
         idletarget=len(self._free)
 
@@ -97,8 +129,8 @@ class NimueConnectionPool(object):
           del self._pool[free[x]]
           del self._free[x]
 
-      # add connections till we get back up to initial
-      addtarget=self.initial - len(self._pool)
+      # add connections till we get back up to _initial
+      addtarget=self._initial - len(self._pool)
       if addtarget > 0:
         for x in range(0,addtarget):
           self._addconnection()
@@ -129,7 +161,7 @@ class NimueConnectionPool(object):
         self._use[member]=1
         return NimueConnection(self,member)
       # if there's room to add a new connection, we are also good
-      elif len(self._pool.keys()) < self.max:
+      elif len(self._pool.keys()) < self._max:
         member=self._addconnection()
         member=self._free.pop(0)
         self._use[member]=1
