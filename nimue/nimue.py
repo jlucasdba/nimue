@@ -7,15 +7,25 @@ import time
 
 logger = logging.getLogger(__name__)
 
+class NimueSubCleanupThread(threading.Thread):
+  def __init__(self,owner):
+    super().__init__(daemon=False)
+    self.owner=owner
+
+  def run(self):
+    self.owner._healthcheckpool()
+
 class NimueCleanupThread(threading.Thread):
   def __init__(self,owner):
-    super().__init__()
+    super().__init__(daemon=True)
     self.exitevent=owner._exitevent
     self.owner=owner
 
   def run(self):
     while(not self.exitevent.wait(timeout=self.owner.cleanup_interval)):
-      self.owner._healthcheckpool()
+      subthread=NimueSubCleanupThread(self.owner)
+      subthread.start()
+      subthread.join()
 
 class NimueConnectionPool(object):
   def __init__(self,connfunc,connargs=None,connkwargs=None,initial=10,max=20,cleanup_interval=60,idle_timeout=300):
