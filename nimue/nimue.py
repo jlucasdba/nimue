@@ -19,6 +19,13 @@ class NimueCleanupThread(threading.Thread):
 
 class NimueConnectionPool(object):
   def __init__(self,connfunc,connargs=None,connkwargs=None,initial=10,max=20,cleanup_interval=60,idle_timeout=300):
+    if initial < 0:
+      raise Exception("Value for initial cannot be less than 0")
+    if max < 1:
+      raise Exception("Value for max cannot be less than 1")
+    if max < initial:
+      raise Exception("Value for max cannot be less than value for initial")
+
     self._connfunc=connfunc
     self._connargs=connargs
     if self._connargs is None:
