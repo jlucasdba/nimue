@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import importlib
 import sys
 import threading
 import time
@@ -17,8 +18,8 @@ class NimueCleanupThread(threading.Thread):
       self.owner._healthcheckpool()
 
 class NimueConnectionPool(object):
-  def __init__(self,dbmodule,connargs=None,connkwargs=None,initial=10,max=20,cleanup_interval=60,idle_timeout=300):
-    self._dbmodule=dbmodule
+  def __init__(self,connfunc,connargs=None,connkwargs=None,initial=10,max=20,cleanup_interval=60,idle_timeout=300):
+    self._connfunc=connfunc
     self._connargs=connargs
     if self._connargs is None:
       self._connargs=[]
@@ -43,6 +44,8 @@ class NimueConnectionPool(object):
     while len(self._pool) < self._initial:
       self._addconnection()
 
+    self._dbmodule=self._finddbmodule()
+
     self._exitevent=threading.Event()
     self._healthcheckthread=NimueCleanupThread(self)
     self._healthcheckthread.start()
@@ -57,8 +60,8 @@ class NimueConnectionPool(object):
     self.close()
 
   @property
-  def dbmodule(self):
-    return self._dbmodule
+  def connfunc(self):
+    return self._connfunc
 
   @property
   def connargs(self):
@@ -109,7 +112,7 @@ class NimueConnectionPool(object):
       self._idle_timeout=val
 
   def _addconnection(self):
-    member=NimueConnectionPoolMember(dbmodule=self._dbmodule,conn=self._dbmodule.connect(*self._connargs,**self._connkwargs))
+    member=NimueConnectionPoolMember(self,conn=self._connfunc(*self._connargs,**self._connkwargs))
     with self._lock:
       self._pool[member]=1
       self._free.insert(0,member)
@@ -162,6 +165,19 @@ class NimueConnectionPool(object):
         for x in range(0,addtarget):
           self._addconnection()
     self._cleanup_cycles+=1
+
+  def _finddbmodule(self):
+    with self._lock:
+      if len(self._free) == 0:
+        raise Exception("No available connections to examine for determining dbmodule")
+      modulename=self._free[0]._conn.__class__.__module__
+      components=modulename.split('.')
+      while len(components) > 0:
+        dbmodule=importlib.import_module('.'.join(components))
+        if 'connect' in dir(dbmodule):
+          return dbmodule
+        del components[-1]
+      raise Exception("Could not determine main dbmodule")
 
   def getconnection(self,blocking=True,timeout=None):
     if timeout is not None and timeout < 0:
@@ -234,8 +250,8 @@ class NimueConnectionPool(object):
           del self._free[x]
 
 class NimueConnectionPoolMember(object):
-  def __init__(self,dbmodule,conn):
-    self._dbmodule=dbmodule
+  def __init__(self,owner,conn):
+    self._owner=owner
     self._conn=conn
     self._create_time=time.monotonic()
     self._touch_time=self._create_time
@@ -243,12 +259,14 @@ class NimueConnectionPoolMember(object):
 
   def healthcheck(self):
     r=True
+    with self._owner._lock:
+      operr=self._owner._dbmodule.OperationalError
     try:
       curs=self._conn.cursor()
       curs.execute("select 1")
       self._conn.rollback()
       curs.close()
-    except self._dbmodule.OperationalError:
+    except operr:
       r=False
     except:
       r=False
