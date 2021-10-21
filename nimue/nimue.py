@@ -153,7 +153,7 @@ class NimueConnectionPool(object):
             self._free[x].close()
           except:
             pass
-          del self._pool[free[x]]
+          del self._pool[self._free[x]]
           del self._free[x]
           self._connections_cleaned_idle+=1
 
