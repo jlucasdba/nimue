@@ -131,7 +131,6 @@ class NimueConnectionPool(object):
           pass
         del self._pool[self._free[x]]
         del self._free[x]
-        logger.warn("Closing dead connection in slot %d" % x)
         self._connections_cleaned_dead+=1
 
       # figure out the maximum idle connections we can remove
