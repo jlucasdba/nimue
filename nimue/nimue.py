@@ -17,7 +17,7 @@ class NimueCleanupThread(threading.Thread):
       self.owner._healthcheckpool()
 
 class NimueConnectionPool(object):
-  def __init__(self,dbmodule,connargs=None,connkwargs=None,initial=10,max=20,cleanup_interval=60):
+  def __init__(self,dbmodule,connargs=None,connkwargs=None,initial=10,max=20,cleanup_interval=60,idle_timeout=300):
     self._dbmodule=dbmodule
     self._connargs=connargs
     if self._connargs is None:
@@ -28,6 +28,7 @@ class NimueConnectionPool(object):
     self._initial=initial
     self._max=max
     self._cleanup_interval=cleanup_interval
+    self._idle_timeout=idle_timeout
 
     self._pool={}
     self._free=[]
@@ -97,6 +98,16 @@ class NimueConnectionPool(object):
     with self._lock:
       self._cleanup_interval=val
 
+  @property
+  def idle_timeout(self):
+    with self._lock:
+      return self._idle_timeout
+
+  @idle_timeout.setter
+  def idle_timeout(self,val):
+    with self._lock:
+      self._idle_timeout=val
+
   def _addconnection(self):
     member=NimueConnectionPoolMember(dbmodule=self._dbmodule,conn=self._dbmodule.connect(*self._connargs,**self._connkwargs))
     with self._lock:
@@ -133,7 +144,7 @@ class NimueConnectionPool(object):
         # identify idle connections that are removal candidates
         now=time.monotonic()
         for x in enumerate(self._free):
-          if now-x[1].touch_time > 10:
+          if now-x[1]._touch_time > self._idle_timeout:
             idle.append(x[0])
 
         # remove oldest idle connections up to idletarget
