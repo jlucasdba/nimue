@@ -147,7 +147,7 @@ class NimueConnectionPool(object):
             idle.append(x[0])
 
         # remove oldest idle connections up to idletarget
-        for x in sorted(sorted(idle,key=lambda z: (self._free[z].touch_time, self._free[z].create_time), reverse=True)[0:idletarget],reverse=True):
+        for x in sorted(sorted(idle,key=lambda z: (now-self._free[z]._touch_time, self._free[z]._create_time), reverse=True)[0:idletarget],reverse=True):
           try:
             self._free[x].close()
           except:
