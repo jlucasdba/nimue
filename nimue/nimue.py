@@ -29,7 +29,26 @@ class _NimueCleanupThread(threading.Thread):
       subthread.join()
 
 class NimueConnectionPool:
+  """
+  Nimue Connection Pool object. An implementation of a database connection pool for DBAPI 2.0 compliant drivers. Allocates
+  a configurable number of initial connections, with the ability to increase on-demand up to maximum. Spawns a background
+  thread responsible for cleanup. Can be used as a context manager, which calls the close() method upon exit. This is the
+  recommended usage. It's important to note that the close() method blocks until all connections are returned to the pool,
+  so it is important not to leak connections, and return them when not in use. Use of context managers is strongly encouraged.
+  """
   def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=None,poolmin=10,poolmax=20,cleanup_interval=60,idle_timeout=300,healthcheck_on_getconnection=True):
+    """
+    :param connfunc: (required) A callable that returns a DBAPI 2.0 compliant Connection object.
+    :param connargs: Iterable list of args to be passed to connfunc.
+    :param connkwargs: Dict containing named keyword arguments to be passed to connfunc.
+    :param poolinit: Initial, minimum size of the pool. Defaults to 10. Cannot be less than 0.
+    :param poolmax: Maximum size of the pool. Defaults to 20. Cannot be less than 1.
+    :param cleanup_interval: Wakeup interval for cleanup thread, in seconds. Defaults to 60. Must be greater than 0.
+    :param idle_timeout: Idle timeout in seconds, after which idle connections are eligible for cleanup. Defaults to 300. Cannot be less than 0.
+    :healthcheck_on_getconnection: If True, perform a healthcheck on getconnection from the pool. If the check fails, the connection is discarded from the pool, and the method continues trying connections until a healthy one can be returned (or until timeout occurs, if set). Defaults to True.
+
+    :returns: Returns a NimueConnectionPool object.
+    """
     # define these early because otherwise the validation checks
     # will cause cascading exceptions on failure
     self._lock=threading.Condition()
@@ -103,18 +122,22 @@ class NimueConnectionPool:
 
   @property
   def connfunc(self):
+    """Callable used by the pool to produce a new Connection. Read-only."""
     return self._connfunc
 
   @property
   def connargs(self):
+    """Arguments passed to connfunc when it is called. Read-only."""
     return self._connargs
 
   @property
   def connkwargs(self):
+    """Keyword arguments passed to connfunc when it is called. Read-only."""
     return self._connkwargs
 
   @property
   def poolinit(self):
+    """Minimum size of the pool. Can be updated. Cannot be set less than 0, nor set greater than max. Update max first if necessary."""
     with self._lock:
       return self._poolinit
 
@@ -134,6 +157,8 @@ class NimueConnectionPool:
 
   @property
   def poolmax(self):
+    """Maximum size of the pool. Can be updated. Cannot be set less than 1, nor can it be set less than initial. Free connections in excess
+       of max will be closed on the next cleanup run."""
     with self._lock:
       return self._poolmax
 
@@ -148,6 +173,7 @@ class NimueConnectionPool:
 
   @property
   def cleanup_interval(self):
+    """Wakeup interval for cleanup thread, in seconds. Can be updated. Must be greater than 0."""
     with self._lock:
       return self._cleanup_interval
 
@@ -160,6 +186,7 @@ class NimueConnectionPool:
 
   @property
   def idle_timeout(self):
+    """Idle timeout in seconds, after which idle connections are eligible for cleanup. Can be updated. Cannot be less than 0."""
     with self._lock:
       return self._idle_timeout
 
@@ -257,6 +284,14 @@ class NimueConnectionPool:
       raise Exception("Could not determine main dbmodule")
 
   def getconnection(self,blocking=True,timeout=None):
+    """
+    Return a connection from the pool.
+
+    :param blocking: Whether to block if no connections are available. Defaults to True, meaning calls may block.
+    :param timeout: Timeout after which call will return None if no connections are available. No effect if blocking is False. Must be 0 or greater.
+
+    :returns: Returns a NimueConnection object, or None if one is not available in nonblocking mode, or when a timeout is reached.
+    """
     if timeout is not None and timeout < 0:
       raise Exception("Timeout must be 0 or greater")
     if timeout is None:
@@ -316,6 +351,11 @@ class NimueConnectionPool:
           # back to the top of the loop, and hopefully get a connection
 
   def poolstats(self):
+    """
+    Get runtime stats from connection pool.
+
+    :returns: A NimueConnectionPoolStats object.
+    """
     with self._lock:
       poolsize=len(self._pool)
       poolused=len(self._use)
@@ -323,6 +363,10 @@ class NimueConnectionPool:
       return NimueConnectionPoolStats(poolsize,poolused,poolfree,self._connections_cleaned_dead,self._connections_cleaned_idle,self._cleanup_cycles)
 
   def close(self):
+    """
+    Close the connection pool, and shutdown the associated cleanup thread. Note that this method will block until all outstanding connections
+    have been returned to the pool.
+    """
     # shutdown the cleanup thread
     self._exitevent.set()
     self._healthcheckthread.join()
@@ -359,6 +403,12 @@ class _NimueConnectionPoolMember:
     self._conn.close()
 
 class NimueConnection:
+  """
+  Wrapper around a DBAPI 2.0 compliant Connection object. Should not be initialized directly, but is
+  returned by NimueConnectionPool.getconnection(). Should behave identically to the underlying Connection
+  in most respects, but the close() method returns the Connection to the pool, rather than actually
+  closing it. Do not attempt to call methods on objects of this class after close().
+  """
   def __init__(self,pool,member):
     self._member=member
     self._pool=pool
@@ -389,6 +439,7 @@ class NimueConnection:
     self._conn.__exit__(exc_type,exc_value,traceback)
 
   def close(self):
+    """Return this connection to the pool. Do not attempt to call methods on the object after close()."""
     # if _closed is True, we do nothing and return
     if self._closed:
       return
@@ -413,6 +464,19 @@ class NimueConnection:
     self._closed=True
 
 class NimueConnectionPoolStats:
+  """
+  Object containing stats about a NimueConnectionPool. Should not be initialized directly, but is returned
+  by NimueConnectionPool.getstats().
+
+  :attribute poolsize: Current total number of connections in the pool (both used and free).
+  :attribute poolused: Current number of connections from the pool currently in use.
+  :attribute poolfree: Current number of available (free) connections in the pool.
+  :attribute connections_cleaned_dead: Number of dead connections that have been removed from the pool during
+  cleanup cycles during the pool's lifetime.
+  :attribute connections_cleaned_idle: Number of idle connections that have been removed from the pool during
+  cleanup cycles during the pool's lifetime.
+  :attribute cleanup_cycles: Number of cleanup cycles that have run during the pool's lifetime.
+  """
   def __init__(self,poolsize,poolused,poolfree,connections_cleaned_dead,connections_cleaned_idle,cleanup_cycles):
     self.poolsize=poolsize
     self.poolused=poolused
