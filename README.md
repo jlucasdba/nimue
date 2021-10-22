@@ -37,6 +37,8 @@ with NimueConnectionPool(connfunc,initial=10,max=20) as pool:
 
 This is a fully functioning web app, returning a json document with a list of tables in a postgres database. One big thing to note is the use of context managers throughout the example. It's important not to leak connections from the pool. If a Connection object goes out of scope, it *should* end up back in the pool when garbage collected, but this shouldn't be counted upon. Context managers provide a reliable way to make sure objects are released as soon as they pass out of scope - even in the event of something unexpected like an unhandled exception.
 
+Although not specified by PEP 249, all the major database drivers use Connection's context manager to wrap a transaction (as seen in the example), rather than the open/close cycle of a connection. This might not be the behavior you expect. Fortunately contextlib provides the closing() function, which provides a context manager that calls close() on exit. Using it is strongly encouraged.
+
 ### Installation
 
 Nimue can be installed with pip. You can also download from the releases page if you're feeling adventurous.
