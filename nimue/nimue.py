@@ -7,7 +7,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
-class NimueSubCleanupThread(threading.Thread):
+class _NimueSubCleanupThread(threading.Thread):
   def __init__(self,owner):
     super().__init__(daemon=False)
     self.owner=owner
@@ -15,7 +15,7 @@ class NimueSubCleanupThread(threading.Thread):
   def run(self):
     self.owner._healthcheckpool()
 
-class NimueCleanupThread(threading.Thread):
+class _NimueCleanupThread(threading.Thread):
   def __init__(self,owner):
     super().__init__(daemon=True)
     self.exitevent=owner._exitevent
@@ -23,7 +23,7 @@ class NimueCleanupThread(threading.Thread):
 
   def run(self):
     while(not self.exitevent.wait(timeout=self.owner.cleanup_interval)):
-      subthread=NimueSubCleanupThread(self.owner)
+      subthread=_NimueSubCleanupThread(self.owner)
       subthread.start()
       subthread.join()
 
@@ -64,7 +64,7 @@ class NimueConnectionPool(object):
     self._dbmodule=self._finddbmodule()
 
     self._exitevent=threading.Event()
-    self._healthcheckthread=NimueCleanupThread(self)
+    self._healthcheckthread=_NimueCleanupThread(self)
     self._healthcheckthread.start()
 
   def __del__(self):
@@ -129,7 +129,7 @@ class NimueConnectionPool(object):
       self._idle_timeout=val
 
   def _addconnection(self):
-    member=NimueConnectionPoolMember(self,conn=self._connfunc(*self._connargs,**self._connkwargs))
+    member=_NimueConnectionPoolMember(self,conn=self._connfunc(*self._connargs,**self._connkwargs))
     with self._lock:
       self._pool[member]=1
       self._free.insert(0,member)
@@ -266,7 +266,7 @@ class NimueConnectionPool(object):
           del self._pool[x[1]]
           del self._free[x]
 
-class NimueConnectionPoolMember(object):
+class _NimueConnectionPoolMember(object):
   def __init__(self,owner,conn):
     self._owner=owner
     self._conn=conn
