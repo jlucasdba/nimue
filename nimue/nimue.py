@@ -176,6 +176,19 @@ class NimueConnectionPool(object):
           del self._free[x]
           self._connections_cleaned_idle+=1
 
+      # After removing dead and idle connections, if pool size is in excess of max (because max may have been decreased)
+      # remove oldest free connections to try to get back under max. If there aren't enough free connections, we
+      # may still be in excess of max though.
+      maxexcess=len(self._pool) - self._max
+      if maxexcess > 0:
+        if len(self._free) >= maxexcess:
+          removenum=maxexcess
+        else:
+          removenum=len(self._free)
+        for x in sorted(sorted(enumerate(self._free),key=lambda z: (now-z[1]._touch_time, z[1]._create_time), reverse=True)[0:maxexcess],key=lambda z: z[0],reverse=True):
+          del self._pool[x[1]]
+          del self._free[x[0]]
+
       # add connections till we get back up to _initial
       addtarget=self._initial - len(self._pool)
       if addtarget > 0:
