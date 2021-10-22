@@ -35,6 +35,10 @@ class NimueConnectionPool(object):
       raise Exception("Value for max cannot be less than 1")
     if max < initial:
       raise Exception("Value for max cannot be less than value for initial")
+    if cleanup_interval <= 0:
+      raise Exception("Value for cleanup_interval must be greater than 0")
+    if idle_timeout < 0:
+      raise Exception("Value for idle_timeout cannot be less than 0")
 
     self._connfunc=connfunc
     self._connargs=connargs
@@ -95,6 +99,10 @@ class NimueConnectionPool(object):
 
   @initial.setter
   def initial(self,val):
+    if val < 0:
+      raise Exception("Value for initial cannot be less than 0")
+    if self._max < val:
+      raise Exception("Value for max cannot be less than value for initial")
     with self._lock:
       self._initial=val
 
@@ -105,6 +113,10 @@ class NimueConnectionPool(object):
 
   @max.setter
   def max(self,val):
+    if val < 1:
+      raise Exception("Value for max cannot be less than 1")
+    if val < self._initial:
+      raise Exception("Value for max cannot be less than value for initial")
     with self._lock:
       self._max=val
 
@@ -115,6 +127,8 @@ class NimueConnectionPool(object):
 
   @cleanup_interval.setter
   def cleanup_interval(self,val):
+    if val <= 0:
+      raise Exception("Value for cleanup_interval must be greater than 0")
     with self._lock:
       self._cleanup_interval=val
 
@@ -125,6 +139,8 @@ class NimueConnectionPool(object):
 
   @idle_timeout.setter
   def idle_timeout(self,val):
+    if val < 0:
+      raise Exception("Value for idle_timeout cannot be less than 0")
     with self._lock:
       self._idle_timeout=val
 
