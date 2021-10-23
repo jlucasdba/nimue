@@ -293,7 +293,7 @@ class NimueConnectionPool(object):
         for x in sorted(enumerate(self._free),key=lambda z: z[0],reverse=True):
           x[1].close()
           del self._pool[x[1]]
-          del self._free[x]
+          del self._free[x[0]]
 
 class _NimueConnectionPoolMember(object):
   def __init__(self,owner,conn):
