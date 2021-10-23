@@ -260,7 +260,11 @@ class NimueConnectionPool(object):
       else:
         if not blocking:
           return None
-        r=self._lock.wait_for(lambda: len(self._free) > 0,timeout-(time.monotonic()-entertime))
+        # if timeout is -1, block indefinitely, else block for the remaining time
+        if timeout == -1:
+          r=self._lock.wait_for(lambda: len(self._free) > 0,None)
+        else:
+          r=self._lock.wait_for(lambda: len(self._free) > 0,timeout-(time.monotonic()-entertime))
         if not r:
           return None
         member=self._free.pop(0)
