@@ -46,3 +46,5 @@ Nimue can be installed with pip. You can also download from the releases page if
 ```bash
 pip install nimue
 ```
+
+Copyright (c) 2021 James Lucas
