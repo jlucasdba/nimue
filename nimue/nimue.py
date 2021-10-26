@@ -103,7 +103,7 @@ class NimueConnectionPool(object):
   def initial(self,val):
     if val < 0:
       raise Exception("Value for initial cannot be less than 0")
-    if self._max < val:
+    if self.max < val:
       raise Exception("Value for max cannot be less than value for initial")
     with self._lock:
       self._initial=val
@@ -117,7 +117,7 @@ class NimueConnectionPool(object):
   def max(self,val):
     if val < 1:
       raise Exception("Value for max cannot be less than 1")
-    if val < self._initial:
+    if val < self.initial:
       raise Exception("Value for max cannot be less than value for initial")
     with self._lock:
       self._max=val
