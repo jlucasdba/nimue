@@ -377,7 +377,7 @@ class NimueConnection(object):
     del self._conn
     self._closed=True
 
-def NimueConnectionPoolStats(object):
+class NimueConnectionPoolStats(object):
   def __init__(self,poolsize,poolused,poolfree,connections_cleaned_dead,connections_cleaned_idle,cleanup_cycles):
     self.poolsize=poolsize
     self.poolused=poolused
