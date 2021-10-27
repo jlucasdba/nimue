@@ -29,7 +29,7 @@ class _NimueCleanupThread(threading.Thread):
       subthread.start()
       subthread.join()
 
-class NimueConnectionPool(object):
+class NimueConnectionPool:
   def __init__(self,connfunc,connargs=None,connkwargs=None,initial=10,max=20,cleanup_interval=60,idle_timeout=300):
     if initial < 0:
       raise Exception("Value for initial cannot be less than 0")
@@ -301,7 +301,7 @@ class NimueConnectionPool(object):
           del self._pool[x[1]]
           del self._free[x[0]]
 
-class _NimueConnectionPoolMember(object):
+class _NimueConnectionPoolMember:
   def __init__(self,owner,conn):
     self._owner=owner
     self._conn=conn
@@ -332,7 +332,7 @@ class _NimueConnectionPoolMember(object):
   def close(self):
     self._conn.close()
 
-class NimueConnection(object):
+class NimueConnection:
   def __init__(self,pool,member):
     self._member=member
     self._pool=pool
@@ -377,7 +377,7 @@ class NimueConnection(object):
     del self._conn
     self._closed=True
 
-class NimueConnectionPoolStats(object):
+class NimueConnectionPoolStats:
   def __init__(self,poolsize,poolused,poolfree,connections_cleaned_dead,connections_cleaned_idle,cleanup_cycles):
     self.poolsize=poolsize
     self.poolused=poolused
