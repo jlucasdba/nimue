@@ -291,9 +291,9 @@ class NimueConnectionPool:
         del self._free[x[0]]
 
       while len(self._use) > 0:
-        logger.debug("Size of _pool is: %d" % len(self._pool))
-        logger.debug("Size of _free is: %d" % len(self._free))
-        logger.debug("Size of _use is: %d" % len(self._use))
+        logger.debug("Size of _pool is: %d", len(self._pool))
+        logger.debug("Size of _free is: %d", len(self._free))
+        logger.debug("Size of _use is: %d", len(self._use))
         self._lock.wait_for(lambda: len(self._free) > 0)
         for x in sorted(enumerate(self._free),key=lambda z: z[0],reverse=True):
           x[1].close()
