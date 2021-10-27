@@ -252,7 +252,7 @@ class NimueConnectionPool:
         return NimueConnection(self,member)
       # if there's room to add a new connection, we are also good
       elif len(self._pool.keys()) < self._max:
-        member=self._addconnection()
+        self._addconnection()
         member=self._free.pop(0)
         self._use[member]=1
         return NimueConnection(self,member)
