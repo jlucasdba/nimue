@@ -3,7 +3,6 @@
 import contextlib
 import logging
 import importlib
-import sys
 import threading
 import time
 
