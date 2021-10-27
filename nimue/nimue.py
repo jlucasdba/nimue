@@ -23,7 +23,7 @@ class _NimueCleanupThread(threading.Thread):
     self.owner=owner
 
   def run(self):
-    while(not self.exitevent.wait(timeout=self.owner.cleanup_interval)):
+    while not self.exitevent.wait(timeout=self.owner.cleanup_interval):
       subthread=_NimueSubCleanupThread(self.owner)
       subthread.start()
       subthread.join()
