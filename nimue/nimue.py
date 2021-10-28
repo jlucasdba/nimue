@@ -29,13 +29,13 @@ class _NimueCleanupThread(threading.Thread):
       subthread.join()
 
 class NimueConnectionPool:
-  def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=10,max=20,cleanup_interval=60,idle_timeout=300):
+  def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=10,poolmax=20,cleanup_interval=60,idle_timeout=300):
     if poolinit < 0:
       raise Exception("Value for poolinit cannot be less than 0")
-    if max < 1:
-      raise Exception("Value for max cannot be less than 1")
-    if max < poolinit:
-      raise Exception("Value for max cannot be less than value for poolinit")
+    if poolmax < 1:
+      raise Exception("Value for poolmax cannot be less than 1")
+    if poolmax < poolinit:
+      raise Exception("Value for poolmax cannot be less than value for poolinit")
     if cleanup_interval <= 0:
       raise Exception("Value for cleanup_interval must be greater than 0")
     if idle_timeout < 0:
@@ -49,7 +49,7 @@ class NimueConnectionPool:
     if self._connkwargs is None:
       self._connkwargs={}
     self._poolinit=poolinit
-    self._max=max
+    self._poolmax=poolmax
     self._cleanup_interval=cleanup_interval
     self._idle_timeout=idle_timeout
 
@@ -102,24 +102,24 @@ class NimueConnectionPool:
   def poolinit(self,val):
     if val < 0:
       raise Exception("Value for poolinit cannot be less than 0")
-    if self.max < val:
-      raise Exception("Value for max cannot be less than value for poolinit")
+    if self.poolmax < val:
+      raise Exception("Value for poolmax cannot be less than value for poolinit")
     with self._lock:
       self._poolinit=val
 
   @property
-  def max(self):
+  def poolmax(self):
     with self._lock:
-      return self._max
+      return self._poolmax
 
-  @max.setter
-  def max(self,val):
+  @poolmax.setter
+  def poolmax(self,val):
     if val < 1:
-      raise Exception("Value for max cannot be less than 1")
+      raise Exception("Value for poolmax cannot be less than 1")
     if val < self.poolinit:
-      raise Exception("Value for max cannot be less than value for poolinit")
+      raise Exception("Value for poolmax cannot be less than value for poolinit")
     with self._lock:
-      self._max=val
+      self._poolmax=val
 
   @property
   def cleanup_interval(self):
@@ -193,16 +193,16 @@ class NimueConnectionPool:
           del self._free[x]
           self._connections_cleaned_idle+=1
 
-      # After removing dead and idle connections, if pool size is in excess of max (because max may have been decreased)
-      # remove oldest free connections to try to get back under max. If there aren't enough free connections, we
-      # may still be in excess of max though.
-      maxexcess=len(self._pool) - self._max
-      if maxexcess > 0:
-        if len(self._free) >= maxexcess:
-          removenum=maxexcess
+      # After removing dead and idle connections, if pool size is in excess of poolmax (because poolmax may have been decreased)
+      # remove oldest free connections to try to get back under poolmax. If there aren't enough free connections, we
+      # may still be in excess of poolmax though.
+      poolmax_excess=len(self._pool) - self._poolmax
+      if poolmax_excess > 0:
+        if len(self._free) >= poolmax_excess:
+          removenum=poolmax_excess
         else:
           removenum=len(self._free)
-        for x in sorted(sorted(enumerate(self._free),key=lambda z: (now-z[1]._touch_time, z[1]._create_time), reverse=True)[0:maxexcess],key=lambda z: z[0],reverse=True):
+        for x in sorted(sorted(enumerate(self._free),key=lambda z: (now-z[1]._touch_time, z[1]._create_time), reverse=True)[0:poolmax_excess],key=lambda z: z[0],reverse=True):
           del self._pool[x[1]]
           del self._free[x[0]]
 
@@ -251,7 +251,7 @@ class NimueConnectionPool:
         self._use[member]=1
         return NimueConnection(self,member)
       # if there's room to add a new connection, we are also good
-      elif len(self._pool.keys()) < self._max:
+      elif len(self._pool.keys()) < self._poolmax:
         self._addconnection()
         member=self._free.pop(0)
         self._use[member]=1
