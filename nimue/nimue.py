@@ -33,11 +33,11 @@ class NimueConnectionPool:
     if poolmin < 0:
       raise Exception("Value for poolmin cannot be less than 0")
     if poolinit is not None and  poolinit < poolmin:
-      raise Exception("Value for poolinit cannot be less than poolmin")
+      raise Exception("Value for poolinit cannot be less than poolmin during initialization")
     if poolmax < 1:
       raise Exception("Value for poolmax cannot be less than 1")
     if poolinit is not None and poolmax < poolinit:
-      raise Exception("Value for poolmax cannot be less than value for poolinit")
+      raise Exception("Value for poolmax cannot be less than value for poolinit during initialization")
     if poolmax < poolmin:
       raise Exception("Value for poolmax cannot be less than value for poolmin")
     if cleanup_interval <= 0:
@@ -116,8 +116,8 @@ class NimueConnectionPool:
   def poolmin(self,val):
     if val < 0:
       raise Exception("Value for poolmin cannot be less than 0")
-    if self.poolinit < val:
-      raise Exception("Value for poolinit cannot be less than value for poolmin")
+    if val > self.poolmax:
+      raise Exception("Value for poolmin cannot be greater than value for poolmax")
     with self._lock:
       self._poolmin=val
 
@@ -130,8 +130,8 @@ class NimueConnectionPool:
   def poolmax(self,val):
     if val < 1:
       raise Exception("Value for poolmax cannot be less than 1")
-    if val < self.poolinit:
-      raise Exception("Value for poolmax cannot be less than value for poolinit")
+    if val < self.poolmin:
+      raise Exception("Value for poolmax cannot be less than value for poolmin")
     with self._lock:
       self._poolmax=val
 
