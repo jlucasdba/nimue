@@ -38,6 +38,8 @@ class NimueConnectionPool:
       raise Exception("Value for poolmax cannot be less than 1")
     if poolinit is not None and poolmax < poolinit:
       raise Exception("Value for poolmax cannot be less than value for poolinit")
+    if poolmax < poolmin:
+      raise Exception("Value for poolmax cannot be less than value for poolmin")
     if cleanup_interval <= 0:
       raise Exception("Value for cleanup_interval must be greater than 0")
     if idle_timeout < 0:
