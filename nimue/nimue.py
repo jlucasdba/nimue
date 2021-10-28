@@ -29,9 +29,11 @@ class _NimueCleanupThread(threading.Thread):
       subthread.join()
 
 class NimueConnectionPool:
-  def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=10,poolmax=20,cleanup_interval=60,idle_timeout=300):
-    if poolinit < 0:
-      raise Exception("Value for poolinit cannot be less than 0")
+  def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=10,poolmin=10,poolmax=20,cleanup_interval=60,idle_timeout=300):
+    if poolmin < 0:
+      raise Exception("Value for poolmin cannot be less than 0")
+    if poolinit < poolmin:
+      raise Exception("Value for poolinit cannot be less than poolmin")
     if poolmax < 1:
       raise Exception("Value for poolmax cannot be less than 1")
     if poolmax < poolinit:
@@ -49,6 +51,7 @@ class NimueConnectionPool:
     if self._connkwargs is None:
       self._connkwargs={}
     self._poolinit=poolinit
+    self._poolmin=poolmin
     self._poolmax=poolmax
     self._cleanup_interval=cleanup_interval
     self._idle_timeout=idle_timeout
@@ -102,10 +105,26 @@ class NimueConnectionPool:
   def poolinit(self,val):
     if val < 0:
       raise Exception("Value for poolinit cannot be less than 0")
+    if val < self.poolmin:
+      raise Exception("Value for poolinit cannot be less than poolmin")
     if self.poolmax < val:
       raise Exception("Value for poolmax cannot be less than value for poolinit")
     with self._lock:
       self._poolinit=val
+
+  @property
+  def poolmin(self):
+    with self._lock:
+      return self._poolmin
+
+  @poolmin.setter
+  def poolmin(self,val):
+    if val < 0:
+      raise Exception("Value for poolmin cannot be less than 0")
+    if self.poolinit < val:
+      raise Exception("Value for poolinit cannot be less than value for poolmin")
+    with self._lock:
+      self._poolmin=val
 
   @property
   def poolmax(self):
@@ -171,7 +190,7 @@ class NimueConnectionPool:
         self._connections_cleaned_dead+=1
 
       # figure out the maximum idle connections we can remove
-      idletarget=len(self._pool)-self._poolinit
+      idletarget=len(self._pool)-self._poolmin
       if len(self._free) < idletarget:
         idletarget=len(self._free)
 
@@ -206,8 +225,8 @@ class NimueConnectionPool:
           del self._pool[x[1]]
           del self._free[x[0]]
 
-      # add connections till we get back up to _poolinit
-      addtarget=self._poolinit - len(self._pool)
+      # add connections till we get back up to _poolmin
+      addtarget=self._poolmin - len(self._pool)
       if addtarget > 0:
         for x in range(0,addtarget):
           self._addconnection()
