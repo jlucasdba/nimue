@@ -30,6 +30,16 @@ class _NimueCleanupThread(threading.Thread):
 
 class NimueConnectionPool:
   def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=None,poolmin=10,poolmax=20,cleanup_interval=60,idle_timeout=300):
+    # define these early because otherwise the validation checks
+    # will cause cascading exceptions
+    self._lock=threading.Condition()
+    self._exitevent=threading.Event()
+    self._pool={}
+    self._free=[]
+    self._use={}
+    self._healthcheckthread=_NimueCleanupThread(self)
+
+    # parameter validations
     if poolmin < 0:
       raise Exception("Value for poolmin cannot be less than 0")
     if poolinit is not None and  poolinit < poolmin:
@@ -58,11 +68,6 @@ class NimueConnectionPool:
     self._cleanup_interval=cleanup_interval
     self._idle_timeout=idle_timeout
 
-    self._pool={}
-    self._free=[]
-    self._use={}
-    self._lock=threading.Condition()
-
     # stats counters
     self._connections_cleaned_dead=0
     self._connections_cleaned_idle=0
@@ -77,8 +82,6 @@ class NimueConnectionPool:
 
     self._dbmodule=self._finddbmodule()
 
-    self._exitevent=threading.Event()
-    self._healthcheckthread=_NimueCleanupThread(self)
     self._healthcheckthread.start()
 
   def __del__(self):
