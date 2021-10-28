@@ -29,14 +29,14 @@ class _NimueCleanupThread(threading.Thread):
       subthread.join()
 
 class NimueConnectionPool:
-  def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=10,poolmin=10,poolmax=20,cleanup_interval=60,idle_timeout=300):
+  def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=None,poolmin=10,poolmax=20,cleanup_interval=60,idle_timeout=300):
     if poolmin < 0:
       raise Exception("Value for poolmin cannot be less than 0")
-    if poolinit < poolmin:
+    if poolinit is not None and  poolinit < poolmin:
       raise Exception("Value for poolinit cannot be less than poolmin")
     if poolmax < 1:
       raise Exception("Value for poolmax cannot be less than 1")
-    if poolmax < poolinit:
+    if poolinit is not None and poolmax < poolinit:
       raise Exception("Value for poolmax cannot be less than value for poolinit")
     if cleanup_interval <= 0:
       raise Exception("Value for cleanup_interval must be greater than 0")
@@ -66,7 +66,11 @@ class NimueConnectionPool:
     self._connections_cleaned_idle=0
     self._cleanup_cycles=0
 
-    while len(self._pool) < self._poolinit:
+    if self._poolinit is None:
+      initial=self._poolmin
+    else:
+      initial=self._poolinit
+    while len(self._pool) < initial:
       self._addconnection()
 
     self._dbmodule=self._finddbmodule()
@@ -103,6 +107,9 @@ class NimueConnectionPool:
 
   @poolinit.setter
   def poolinit(self,val):
+    if val is None:
+      val=self.poolmin
+
     if val < 0:
       raise Exception("Value for poolinit cannot be less than 0")
     if val < self.poolmin:
