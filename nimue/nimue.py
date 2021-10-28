@@ -107,20 +107,6 @@ class NimueConnectionPool:
     with self._lock:
       return self._poolinit
 
-  @poolinit.setter
-  def poolinit(self,val):
-    if val is None:
-      val=self.poolmin
-
-    if val < 0:
-      raise Exception("Value for poolinit cannot be less than 0")
-    if val < self.poolmin:
-      raise Exception("Value for poolinit cannot be less than poolmin")
-    if self.poolmax < val:
-      raise Exception("Value for poolmax cannot be less than value for poolinit")
-    with self._lock:
-      self._poolinit=val
-
   @property
   def poolmin(self):
     with self._lock:
