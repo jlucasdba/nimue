@@ -55,6 +55,7 @@ class NimueConnectionPool:
     if idle_timeout < 0:
       raise Exception("Value for idle_timeout cannot be less than 0")
 
+    # set internal values from parameters
     self._connfunc=connfunc
     self._connargs=connargs
     if self._connargs is None:
@@ -73,6 +74,7 @@ class NimueConnectionPool:
     self._connections_cleaned_idle=0
     self._cleanup_cycles=0
 
+    # initialize the pool
     if self._poolinit is None:
       initial=self._poolmin
     else:
@@ -80,8 +82,11 @@ class NimueConnectionPool:
     while len(self._pool) < initial:
       self._addconnection()
 
+    # identify the dbmodule used by connections since
+    # we need to know it to reference its exceptions
     self._dbmodule=self._finddbmodule()
 
+    # start the healthcheck thread
     self._healthcheckthread.start()
 
   def __del__(self):
