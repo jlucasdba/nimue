@@ -29,13 +29,13 @@ class _NimueCleanupThread(threading.Thread):
       subthread.join()
 
 class NimueConnectionPool:
-  def __init__(self,connfunc,connargs=None,connkwargs=None,initial=10,max=20,cleanup_interval=60,idle_timeout=300):
-    if initial < 0:
-      raise Exception("Value for initial cannot be less than 0")
+  def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=10,max=20,cleanup_interval=60,idle_timeout=300):
+    if poolinit < 0:
+      raise Exception("Value for poolinit cannot be less than 0")
     if max < 1:
       raise Exception("Value for max cannot be less than 1")
-    if max < initial:
-      raise Exception("Value for max cannot be less than value for initial")
+    if max < poolinit:
+      raise Exception("Value for max cannot be less than value for poolinit")
     if cleanup_interval <= 0:
       raise Exception("Value for cleanup_interval must be greater than 0")
     if idle_timeout < 0:
@@ -48,7 +48,7 @@ class NimueConnectionPool:
     self._connkwargs=connkwargs
     if self._connkwargs is None:
       self._connkwargs={}
-    self._initial=initial
+    self._poolinit=poolinit
     self._max=max
     self._cleanup_interval=cleanup_interval
     self._idle_timeout=idle_timeout
@@ -63,7 +63,7 @@ class NimueConnectionPool:
     self._connections_cleaned_idle=0
     self._cleanup_cycles=0
 
-    while len(self._pool) < self._initial:
+    while len(self._pool) < self._poolinit:
       self._addconnection()
 
     self._dbmodule=self._finddbmodule()
@@ -94,18 +94,18 @@ class NimueConnectionPool:
     return self._connkwargs
 
   @property
-  def initial(self):
+  def poolinit(self):
     with self._lock:
-      return self._initial
+      return self._poolinit
 
-  @initial.setter
-  def initial(self,val):
+  @poolinit.setter
+  def poolinit(self,val):
     if val < 0:
-      raise Exception("Value for initial cannot be less than 0")
+      raise Exception("Value for poolinit cannot be less than 0")
     if self.max < val:
-      raise Exception("Value for max cannot be less than value for initial")
+      raise Exception("Value for max cannot be less than value for poolinit")
     with self._lock:
-      self._initial=val
+      self._poolinit=val
 
   @property
   def max(self):
@@ -116,8 +116,8 @@ class NimueConnectionPool:
   def max(self,val):
     if val < 1:
       raise Exception("Value for max cannot be less than 1")
-    if val < self.initial:
-      raise Exception("Value for max cannot be less than value for initial")
+    if val < self.poolinit:
+      raise Exception("Value for max cannot be less than value for poolinit")
     with self._lock:
       self._max=val
 
@@ -171,7 +171,7 @@ class NimueConnectionPool:
         self._connections_cleaned_dead+=1
 
       # figure out the maximum idle connections we can remove
-      idletarget=len(self._pool)-self._initial
+      idletarget=len(self._pool)-self._poolinit
       if len(self._free) < idletarget:
         idletarget=len(self._free)
 
@@ -206,8 +206,8 @@ class NimueConnectionPool:
           del self._pool[x[1]]
           del self._free[x[0]]
 
-      # add connections till we get back up to _initial
-      addtarget=self._initial - len(self._pool)
+      # add connections till we get back up to _poolinit
+      addtarget=self._poolinit - len(self._pool)
       if addtarget > 0:
         for x in range(0,addtarget):
           self._addconnection()
