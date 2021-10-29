@@ -115,12 +115,24 @@ class PoolTests(unittest.TestCase):
   def testParamValidation(self,FakeThread):
     "Test validation of parameters at NimueConnectionPool construction."
     x=[]
+    # poolmin cannot be less than 0
     with self.assertRaises(Exception):
       nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=-1,poolmax=10)
-    with self.assertRaises(Exception):
-      nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=5,poolmax=4)
+    # poolmin cannot be greater than poolmax
     with self.assertRaises(Exception):
       nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=11,poolmax=10)
+    # poolmax cannot be less than 1
+    with self.assertRaises(Exception):
+      nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=0,poolmax=0)
+    # poolmax cannot be less than poolmin
+    with self.assertRaises(Exception):
+      nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=5,poolmax=4)
+    # poolinit cannot be less than poolmin
+    with self.assertRaises(Exception):
+      nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolinit=4,poolmin=5,poolmax=10)
+    # poolinit cannot be greater than poolmax
+    with self.assertRaises(Exception):
+      nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolinit=11,poolmin=5,poolmax=10)
     with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=10) as pool:
       with contextlib.ExitStack() as stack:
         for y in range(0,10):
