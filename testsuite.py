@@ -169,7 +169,7 @@ class ConnectionTests(unittest.TestCase):
 
   def testGetConnection(self):
     "Test that getconnection returns a NimueConnection."
-    with self.pool.getconnection() as conn:
+    with contextlib.closing(self.pool.getconnection()) as conn:
       self.assertTrue(isinstance(conn,nimue.NimueConnection))
 
   def testClose(self):
