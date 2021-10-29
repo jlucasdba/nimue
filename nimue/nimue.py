@@ -41,8 +41,9 @@ class NimueConnectionPool:
     :param connfunc: (required) A callable that returns a DBAPI 2.0 compliant Connection object.
     :param connargs: Iterable list of args to be passed to connfunc.
     :param connkwargs: Dict containing named keyword arguments to be passed to connfunc.
-    :param poolinit: Initial, minimum size of the pool. Defaults to 10. Cannot be less than 0.
-    :param poolmax: Maximum size of the pool. Defaults to 20. Cannot be less than 1.
+    :param poolinit: Initial size of the pool. Defaults to None, meaning to use poolmin as the initial size. Cannot be less than poolmin or greater than poolmax.
+    :param poolmin: Minimum size of the pool. Defaults to 10. Cannot be less than 0, and cannot be greater than poolmax.
+    :param poolmax: Maximum size of the pool. Defaults to 20. Cannot be less than 1, and cannot be less than poolmin.
     :param cleanup_interval: Wakeup interval for cleanup thread, in seconds. Defaults to 60. Must be greater than 0.
     :param idle_timeout: Idle timeout in seconds, after which idle connections are eligible for cleanup. Defaults to 300. Cannot be less than 0.
     :healthcheck_on_getconnection: If True, perform a healthcheck on getconnection from the pool. If the check fails, the connection is discarded from the pool, and the method continues trying connections until a healthy one can be returned (or until timeout occurs, if set). Defaults to True.
@@ -137,12 +138,13 @@ class NimueConnectionPool:
 
   @property
   def poolinit(self):
-    """Minimum size of the pool. Can be updated. Cannot be set less than 0, nor set greater than max. Update max first if necessary."""
+    """Initial size of the pool used at pool initialization. Read-only."""
     with self._lock:
       return self._poolinit
 
   @property
   def poolmin(self):
+    """Minimum size of the pool. Can be updated. Cannot be set less than 0, nor set greater than poolmax. Update poolmax first if necessary."""
     with self._lock:
       return self._poolmin
 
@@ -157,7 +159,7 @@ class NimueConnectionPool:
 
   @property
   def poolmax(self):
-    """Maximum size of the pool. Can be updated. Cannot be set less than 1, nor can it be set less than initial. Free connections in excess
+    """Maximum size of the pool. Can be updated. Cannot be set less than 1, nor set less than poolmin. Free connections in excess
        of max will be closed on the next cleanup run."""
     with self._lock:
       return self._poolmax
@@ -408,6 +410,10 @@ class NimueConnection:
   returned by NimueConnectionPool.getconnection(). Should behave identically to the underlying Connection
   in most respects, but the close() method returns the Connection to the pool, rather than actually
   closing it. Do not attempt to call methods on objects of this class after close().
+
+  It is important not to leak connections - they should be explicitly closed when no longer in use, to
+  return them to the pool. The object destructor issues a warning if a connection object is destroyed
+  without first being closed.
   """
   def __init__(self,pool,member):
     self._member=member
