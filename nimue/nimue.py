@@ -391,16 +391,9 @@ class _NimueConnectionPoolMember:
     self._healthcheck_callback=self._owner.healthcheck_callback
 
   def healthcheck(self):
-    r=True
     with self._owner._lock:
-      operr=self._owner._dbmodule.OperationalError
-    try:
-      self._healthcheck_callback(self._conn)
-    except operr:
-      r=False
-    except:
-      r=False
-      logger.exception('Unexpected exception during healthcheck. Connection will be invalidated.')
+      dbmodule=self._owner._dbmodule
+    r=self._healthcheck_callback(self._conn,dbmodule,logger)
     self._check_time=time.monotonic()
     return r
 
