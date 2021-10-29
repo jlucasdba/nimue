@@ -372,7 +372,9 @@ class NimueConnection:
       self._conn.__dict__[attr]=value
 
   def __del__(self):
-    self.close()
+    if not self._closed:
+      logger.warning("NimueConnection destructor reached without explicit close.")
+      self.close()
 
   def __enter__(self):
     self._conn.__enter__()
