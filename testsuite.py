@@ -157,5 +157,33 @@ class PoolTests(unittest.TestCase):
     self.conn.close()
     shutil.rmtree(self.tempdir)
 
+class ConnectionTests(unittest.TestCase):
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def setUp(self,FakeThread):
+    self.tempdir=tempfile.mkdtemp()
+    self.conn=sqlite3.connect(database=os.path.join(self.tempdir,'testdb'),check_same_thread=False)
+    curs=self.conn.cursor()
+    curs.execute("create table updtest (id integer)")
+    self.conn.commit()
+    self.pool=nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=10)
+
+  def testGetConnection(self):
+    "Test that getconnection returns a NimueConnection."
+    with self.pool.getconnection() as conn:
+      self.assertTrue(isinstance(conn,nimue.NimueConnection))
+
+  def testClose(self):
+    "Test connection close returns connection to pool free list."
+    with self.pool._lock:
+      self.assertEqual(len(self.pool._free),2)
+    with contextlib.closing(self.pool.getconnection()) as conn:
+      pass
+    with self.pool._lock:
+      self.assertEqual(len(self.pool._free),2)
+
+  def tearDown(self):
+    self.conn.close()
+    shutil.rmtree(self.tempdir)
+
 if __name__=='__main__':
   unittest.main()
