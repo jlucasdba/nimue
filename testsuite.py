@@ -44,6 +44,21 @@ class PoolTests(unittest.TestCase):
       self.assertEqual(pool.idle_timeout,300)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testSetterValidation(self,FakeThread):
+    "Test validation of NimueConnectionPool property setters."
+    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=0,poolmax=5) as pool:
+      with self.assertRaises(Exception):
+        pool.poolmin=-1
+      with self.assertRaises(Exception):
+        pool.poolmin=6
+      with self.assertRaises(Exception):
+        pool.poolmax=0
+
+    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=4,poolmax=5) as pool:
+      with self.assertRaises(Exception):
+        pool.poolmax=3
+
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testInitialSizeMin(self,FakeThread):
     "Test poolmin during pool initialization."
     with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=4) as pool:
