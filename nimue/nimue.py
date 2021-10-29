@@ -238,8 +238,10 @@ class NimueConnectionPool:
   def _finddbmodule(self):
     with self._lock:
       if len(self._free) == 0:
-        raise Exception("No available connections to examine for determining dbmodule")
-      modulename=self._free[0]._conn.__class__.__module__
+        with contextlib.closing(self._connfunc(*self._connargs,**self._connkwargs)) as conn:
+          modulename=conn.__class__.__module__
+      else:
+        modulename=self._free[0]._conn.__class__.__module__
       components=modulename.split('.')
       while len(components) > 0:
         dbmodule=importlib.import_module('.'.join(components))
