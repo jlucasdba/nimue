@@ -47,13 +47,13 @@ class PoolTests(unittest.TestCase):
   def testInitialSizeMin(self,FakeThread):
     "Test poolmin during pool initialization."
     with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=4) as pool:
-      self.assertEqual(len(pool._pool),2)
+      self.assertEqual(pool.poolstats().poolsize,2)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testInitialSizeInit(self,FakeThread):
     "Test poolinit during pool initialization."
     with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=4,poolinit=3) as pool:
-      self.assertEqual(len(pool._pool),3)
+      self.assertEqual(pool.poolstats().poolsize,3)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testMaxSize(self,FakeThread):
@@ -64,7 +64,7 @@ class PoolTests(unittest.TestCase):
         for y in range(0,4):
           x.append(pool.getconnection())
           stack.push(contextlib.closing(x[-1]))
-        self.assertEqual(len(pool._pool),4)
+        self.assertEqual(pool.poolstats().poolsize,4)
     
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testIdleCleanup(self,FakeThread):
@@ -75,9 +75,9 @@ class PoolTests(unittest.TestCase):
         for y in range(0,4):
           x.append(pool.getconnection())
           stack.push(contextlib.closing(x[-1]))
-        self.assertEqual(len(pool._pool),4)
+        self.assertEqual(pool.poolstats().poolsize,4)
       pool._healthcheckpool()
-      self.assertEqual(len(pool._pool),2)
+      self.assertEqual(pool.poolstats().poolsize,2)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testOverMax(self,FakeThread):
@@ -88,17 +88,17 @@ class PoolTests(unittest.TestCase):
         for y in range(0,10):
           x.append(pool.getconnection())
           stack.push(contextlib.closing(x[-1]))
-        self.assertEqual(len(pool._pool),10)
+        self.assertEqual(pool.poolstats().poolsize,10)
       pool.poolmax=4
       self.assertEqual(pool.poolmax,4)
-      self.assertEqual(len(pool._pool),10)
+      self.assertEqual(pool.poolstats().poolsize,10)
       pool._healthcheckpool()
-      self.assertEqual(len(pool._pool),4)
+      self.assertEqual(pool.poolstats().poolsize,4)
       pool.idle_timeout=0
       pool._healthcheckpool()
-      self.assertEqual(len(pool._pool),2)
-      self.assertEqual(len(pool._free),2)
-      self.assertEqual(len(pool._use),0)
+      self.assertEqual(pool.poolstats().poolsize,2)
+      self.assertEqual(pool.poolstats().poolfree,2)
+      self.assertEqual(pool.poolstats().poolused,0)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testDefaults(self,FakeThread):
@@ -174,12 +174,10 @@ class ConnectionTests(unittest.TestCase):
 
   def testClose(self):
     "Test connection close returns connection to pool free list."
-    with self.pool._lock:
-      self.assertEqual(len(self.pool._free),2)
+    self.assertEqual(self.pool.poolstats().poolfree,2)
     with contextlib.closing(self.pool.getconnection()) as conn:
       pass
-    with self.pool._lock:
-      self.assertEqual(len(self.pool._free),2)
+    self.assertEqual(self.pool.poolstats().poolfree,2)
 
   def tearDown(self):
     self.conn.close()
