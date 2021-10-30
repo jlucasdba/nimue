@@ -234,7 +234,10 @@ class NimueConnectionPool:
       addtarget=self._poolmin - len(self._pool)
       if addtarget > 0:
         for x in range(0,addtarget):
-          self._addconnection()
+          try:
+            self._addconnection()
+          except:
+            logger.exception("Failed to add connection while pool size below poolmin")
     self._cleanup_cycles+=1
 
   def _finddbmodule(self):
