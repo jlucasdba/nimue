@@ -31,7 +31,7 @@ class _NimueCleanupThread(threading.Thread):
 class NimueConnectionPool:
   def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=None,poolmin=10,poolmax=20,cleanup_interval=60,idle_timeout=300):
     # define these early because otherwise the validation checks
-    # will cause cascading exceptions
+    # will cause cascading exceptions on failure
     self._lock=threading.Condition()
     self._exitevent=threading.Event()
     self._pool={}
@@ -90,7 +90,9 @@ class NimueConnectionPool:
     self._healthcheckthread.start()
 
   def __del__(self):
-    self.close()
+    # only call close if at least these attributes have been initialized already
+    if len(set(('_lock','_exitevent','_pool','_free','_use','_healthcheckthread')) & set(vars(self))) > 0:
+      self.close()
 
   def __enter__(self):
     return self
