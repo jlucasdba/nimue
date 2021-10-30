@@ -293,6 +293,8 @@ class NimueConnectionPool:
     :param timeout: Timeout after which call will return None if no connections are available. No effect if blocking is False. Must be 0 or greater.
 
     :returns: Returns a NimueConnection object, or None if one is not available in nonblocking mode, or when a timeout is reached.
+
+    :raises Exception: If there are no available connections in the pool, and there is sufficient capacity, a new connection attempt is made. Opening the new connection could raise an exception. In this case, the calling code is responsible for catching the exception and retrying.
     """
     if timeout is not None and timeout < 0:
       raise Exception("Timeout must be 0 or greater")
