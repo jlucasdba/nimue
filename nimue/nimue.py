@@ -274,32 +274,45 @@ class NimueConnectionPool:
       # if _exitevent has been set, the pool is being torn down, so raise an exception
       if self._exitevent.is_set():
         raise Exception("Pool %s has already been closed." % self)
-      # if there's a free connection in the pool, we are good
-      elif len(self._free) > 0:
-        member=self._free.pop(0)
-        self._use[member]=1
-        return NimueConnection(self,member)
-      # if there's room to add a new connection, we are also good
-      elif len(self._pool.keys()) < self._poolmax:
-        self._addconnection()
-        member=self._free.pop(0)
-        self._use[member]=1
-        return NimueConnection(self,member)
-      # but if neither of those are true, now we have to wait
-      # (or give up if blocking is False)
-      else:
-        if not blocking:
-          return None
-        # if timeout is -1, block indefinitely, else block for the remaining time
-        if timeout == -1:
-          r=self._lock.wait_for(lambda: len(self._free) > 0,None)
+
+      while True:
+        # if there's a free connection in the pool, we are good
+        if len(self._free) > 0:
+          member=self._free.pop(0)
+          if self.healthcheck_on_get:
+            # if we fail healthcheck, remove from pool and start over
+            if not member.healthcheck():
+              member.close()
+              del self.pool[member]
+              continue
+          self._use[member]=1
+          return NimueConnection(self,member)
+        # if there's not, but there's room to add a new connection, we are also good
+        elif len(self._pool.keys()) < self._poolmax:
+          self._addconnection()
+          member=self._free.pop(0)
+          if self.healthcheck_on_get:
+          # go ahead and healthcheck the new connection as well
+            if not member.healthcheck():
+              member.close()
+              del self.pool[member]
+              continue
+          self._use[member]=1
+          return NimueConnection(self,member)
+        # but if neither of those are true, now we have to wait
+        # (or give up if blocking is False)
         else:
-          r=self._lock.wait_for(lambda: len(self._free) > 0,timeout-(time.monotonic()-entertime))
-        if not r:
-          return None
-        member=self._free.pop(0)
-        self._use[member]=1
-        return NimueConnection(self,member)
+          if not blocking:
+            return None
+          # if timeout is -1, block indefinitely, else block for the remaining time
+          if timeout == -1:
+            r=self._lock.wait_for(lambda: len(self._free) > 0,None)
+          else:
+            r=self._lock.wait_for(lambda: len(self._free) > 0,timeout-(time.monotonic()-entertime))
+          if not r:
+            return None
+          # At this point, there might be a connection available, so do nothing, go
+          # back to the top of the loop, and hopefully get a connection
 
   def poolstats(self):
     with self._lock:
