@@ -29,7 +29,7 @@ class _NimueCleanupThread(threading.Thread):
       subthread.join()
 
 class NimueConnectionPool:
-  def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=None,poolmin=10,poolmax=20,cleanup_interval=60,idle_timeout=300):
+  def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=None,poolmin=10,poolmax=20,cleanup_interval=60,idle_timeout=300,healthcheck_on_get=True):
     # define these early because otherwise the validation checks
     # will cause cascading exceptions on failure
     self._lock=threading.Condition()
@@ -68,6 +68,7 @@ class NimueConnectionPool:
     self._poolmax=poolmax
     self._cleanup_interval=cleanup_interval
     self._idle_timeout=idle_timeout
+    self._healthcheck_on_get=healthcheck_on_get
 
     # stats counters
     self._connections_cleaned_dead=0
@@ -279,7 +280,7 @@ class NimueConnectionPool:
         # if there's a free connection in the pool, we are good
         if len(self._free) > 0:
           member=self._free.pop(0)
-          if self.healthcheck_on_get:
+          if self._healthcheck_on_get:
             # if we fail healthcheck, remove from pool and start over
             if not member.healthcheck():
               member.close()
@@ -291,7 +292,7 @@ class NimueConnectionPool:
         elif len(self._pool.keys()) < self._poolmax:
           self._addconnection()
           member=self._free.pop(0)
-          if self.healthcheck_on_get:
+          if self._healthcheck_on_get:
           # go ahead and healthcheck the new connection as well
             if not member.healthcheck():
               member.close()
