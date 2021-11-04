@@ -286,8 +286,8 @@ class NimueConnectionPool:
               member.close()
               del self.pool[member]
               continue
-          self._use[member]=1
-          return NimueConnection(self,member)
+          self._use[member]=NimueConnection(self,member)
+          return self._use[member]
         # if there's not, but there's room to add a new connection, we are also good
         elif len(self._pool.keys()) < self._poolmax:
           self._addconnection()
@@ -298,8 +298,8 @@ class NimueConnectionPool:
               member.close()
               del self.pool[member]
               continue
-          self._use[member]=1
-          return NimueConnection(self,member)
+          self._use[member]=NimueConnection(self,member)
+          return self._use[member]
         # but if neither of those are true, now we have to wait
         # (or give up if blocking is False)
         else:
@@ -326,22 +326,6 @@ class NimueConnectionPool:
     # shutdown the cleanup thread
     self._exitevent.set()
     self._healthcheckthread.join()
-
-    with self._lock:
-      for x in sorted(enumerate(self._free),key=lambda z: z[0],reverse=True):
-        x[1].close()
-        del self._pool[x[1]]
-        del self._free[x[0]]
-
-      while len(self._use) > 0:
-        logger.debug("Size of _pool is: %d", len(self._pool))
-        logger.debug("Size of _free is: %d", len(self._free))
-        logger.debug("Size of _use is: %d", len(self._use))
-        self._lock.wait_for(lambda: len(self._free) > 0)
-        for x in sorted(enumerate(self._free),key=lambda z: z[0],reverse=True):
-          x[1].close()
-          del self._pool[x[1]]
-          del self._free[x[0]]
 
 class _NimueConnectionPoolMember:
   def __init__(self,owner,conn):
@@ -407,6 +391,12 @@ class NimueConnection:
   def close(self):
     # if _closed is True, we do nothing and return
     if self._closed:
+      return
+
+    # if the pool has been closed, just close the
+    # underlying connection and move on
+    if self._pool._exitevent.is_set():
+      self._conn.close()
       return
 
     self._conn.rollback()
