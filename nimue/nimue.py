@@ -286,8 +286,8 @@ class NimueConnectionPool:
               member.close()
               del self.pool[member]
               continue
-          self._use[member]=NimueConnection(self,member)
-          return self._use[member]
+          self._use[member]=1
+          return NimueConnection(self,member)
         # if there's not, but there's room to add a new connection, we are also good
         elif len(self._pool.keys()) < self._poolmax:
           self._addconnection()
@@ -298,8 +298,8 @@ class NimueConnectionPool:
               member.close()
               del self.pool[member]
               continue
-          self._use[member]=NimueConnection(self,member)
-          return self._use[member]
+          self._use[member]=1
+          return NimueConnection(self,member)
         # but if neither of those are true, now we have to wait
         # (or give up if blocking is False)
         else:
