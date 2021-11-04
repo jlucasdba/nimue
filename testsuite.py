@@ -275,6 +275,19 @@ class ConnectionTests(unittest.TestCase):
       pass
     self.assertEqual(self.pool.poolstats().poolfree,2)
 
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testCloseWithClosedPool(self,FakeThread):
+    pool=nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb2'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=5)
+    conn=pool.getconnection()
+    curs=conn.cursor()
+    curs.execute("SELECT 1")
+    pool.close()
+    for x in curs:
+      self.assertEqual(x[0],1)
+    curs.close()
+    conn.close()
+    pool.close()
+
   def tearDown(self):
     self.conn.close()
     shutil.rmtree(self.tempdir)
