@@ -180,6 +180,75 @@ class PoolTests(unittest.TestCase):
           pool.idle_timeout=-1
         self.assertRaises(Exception,assertfunc)
 
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testGetAtFreeZero(self,FakeThread):
+    "Test getconnection when no free connections"
+    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=1) as pool:
+      self.assertEqual(pool.poolstats().poolsize,1)
+      self.assertEqual(pool.poolstats().poolused,0)
+      self.assertEqual(pool.poolstats().poolfree,1)
+      with contextlib.closing(pool.getconnection()) as conn:
+        self.assertTrue(isinstance(conn,nimue.NimueConnection))
+        self.assertEqual(pool.poolstats().poolsize,1)
+        self.assertEqual(pool.poolstats().poolused,1)
+        self.assertEqual(pool.poolstats().poolfree,0)
+        with contextlib.closing(pool.getconnection()) as conn2:
+          self.assertEqual(pool.poolstats().poolsize,2)
+          self.assertEqual(pool.poolstats().poolused,2)
+          self.assertEqual(pool.poolstats().poolfree,0)
+
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testGetAtMaxZeroTimeout(self,FakeThread):
+    "Test getconnection when pool is at max size, with zero timeout"
+    x=[]
+    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=5) as pool:
+      self.assertEqual(pool.poolstats().poolsize,5)
+      self.assertEqual(pool.poolstats().poolused,0)
+      self.assertEqual(pool.poolstats().poolfree,5)
+      with contextlib.ExitStack() as stack:
+        for i in range(0,5):
+          self.assertEqual(pool.poolstats().poolsize,5)
+          self.assertEqual(pool.poolstats().poolused,0+i)
+          self.assertEqual(pool.poolstats().poolfree,5-i)
+          x.append(pool.getconnection())
+          stack.push(contextlib.closing(x[-1]))
+        self.assertEqual(pool.poolstats().poolsize,5)
+        self.assertEqual(pool.poolstats().poolused,5)
+        self.assertEqual(pool.poolstats().poolfree,0)
+        x.append(pool.getconnection(timeout=0))
+        if x[-1] is not None:
+          stack.push(contextlib.closing(x[-1]))
+        self.assertTrue(x[-1] is None)
+        self.assertEqual(pool.poolstats().poolsize,5)
+        self.assertEqual(pool.poolstats().poolused,5)
+        self.assertEqual(pool.poolstats().poolfree,0)
+
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testGetAtMaxNonZeroTimeout(self,FakeThread):
+    "Test getconnection when pool is at max size, with (small) non-zero timeout"
+    x=[]
+    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=5) as pool:
+      self.assertEqual(pool.poolstats().poolsize,5)
+      self.assertEqual(pool.poolstats().poolused,0)
+      self.assertEqual(pool.poolstats().poolfree,5)
+      with contextlib.ExitStack() as stack:
+        for i in range(0,5):
+          self.assertEqual(pool.poolstats().poolsize,5)
+          self.assertEqual(pool.poolstats().poolused,0+i)
+          self.assertEqual(pool.poolstats().poolfree,5-i)
+          x.append(pool.getconnection())
+          stack.push(contextlib.closing(x[-1]))
+        self.assertEqual(pool.poolstats().poolsize,5)
+        self.assertEqual(pool.poolstats().poolused,5)
+        self.assertEqual(pool.poolstats().poolfree,0)
+        x.append(pool.getconnection(timeout=.25))
+        if x[-1] is not None:
+          stack.push(contextlib.closing(x[-1]))
+        self.assertTrue(x[-1] is None)
+        self.assertEqual(pool.poolstats().poolsize,5)
+        self.assertEqual(pool.poolstats().poolused,5)
+        self.assertEqual(pool.poolstats().poolfree,0)
+
   def tearDown(self):
     self.conn.close()
     shutil.rmtree(self.tempdir)
