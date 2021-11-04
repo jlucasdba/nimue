@@ -394,9 +394,10 @@ class NimueConnection:
       return
 
     # if the pool has been closed, just close the
-    # underlying connection and move on
+    # underlying connection, mark ourself closed and move on
     if self._pool._exitevent.is_set():
       self._conn.close()
+      self._closed=True
       return
 
     self._conn.rollback()
