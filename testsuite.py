@@ -9,6 +9,7 @@ import os.path
 import shutil
 import sqlite3
 import tempfile
+import threading
 import time
 import unittest
 import unittest.mock
@@ -255,6 +256,64 @@ class PoolTests(unittest.TestCase):
         self.assertEqual(pool.poolstats().poolsize,5)
         self.assertEqual(pool.poolstats().poolused,5)
         self.assertEqual(pool.poolstats().poolfree,0)
+
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testGetConnectionThreaded(self,FakeThread):
+    "Test getconnection with multiple threads."
+    def testthread(getevent,endevent,waitevent,pool):
+      #set event immediately before entering wait
+      waitevent.set()
+      with contextlib.closing(pool.getconnection()) as conn:
+        #set another event after getting connection
+        getevent.set()
+        endevent.wait()
+
+    t=[]
+    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=1) as pool:
+      # launch 5 threads which will consume all connections in pool
+      for i in range(0,5):
+        t.append({'getevent': threading.Event(),'waitevent': threading.Event(),'endevent': threading.Event()})
+        t[-1]['thread']=threading.Thread(target=testthread,args=(t[-1]['getevent'],t[-1]['endevent'],t[-1]['waitevent'],pool))
+        t[-1]['thread'].start()
+      for i in range(0,5):
+        t[i]['getevent'].wait()
+      self.assertEqual(pool.poolstats().poolsize,5)
+      self.assertEqual(pool.poolstats().poolused,5)
+      self.assertEqual(pool.poolstats().poolfree,0)
+      # launch a sixth connection, which will be blocked waiting for a connection
+      t.append({'getevent': threading.Event(),'endevent': threading.Event(),'waitevent': threading.Event()})
+      t[5]['thread']=threading.Thread(target=testthread,args=(t[5]['getevent'],t[5]['endevent'],t[5]['waitevent'],pool))
+      t[5]['thread'].start()
+      # possible non-determinism here - we can't know absolutely for
+      # sure that the thread is blocked waiting.  But if waitevent is
+      # set, that happens right before it calls getconnection, and if
+      # getevent is not set, that means the connection hasn't been
+      # obtained. So *probably* the thread is waiting.
+      # We can at least verify that the poolstats haven't changed.
+      t[5]['waitevent'].wait()
+      self.assertEqual(pool.poolstats().poolsize,5)
+      self.assertEqual(pool.poolstats().poolused,5)
+      self.assertEqual(pool.poolstats().poolfree,0)
+      self.assertFalse(t[5]['getevent'].isSet())
+
+      # Finish out the first thread
+      t[0]['endevent'].set()
+      t[0]['thread'].join()
+      # Now wait for the final thread to obtain its connection
+      self.assertTrue(t[5]['getevent'].wait())
+      self.assertEqual(pool.poolstats().poolsize,5)
+      self.assertEqual(pool.poolstats().poolused,5)
+      self.assertEqual(pool.poolstats().poolfree,0)
+
+      # Now finish out remaining threads
+      for i in range(1,6):
+        t[i]['endevent'].set()
+        t[i]['thread'].join()
+
+      # Make sure the pool looks like we expect
+      self.assertEqual(pool.poolstats().poolsize,5)
+      self.assertEqual(pool.poolstats().poolused,0)
+      self.assertEqual(pool.poolstats().poolfree,5)
 
   def tearDown(self):
     self.conn.close()
