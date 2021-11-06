@@ -181,6 +181,13 @@ class PoolTests(unittest.TestCase):
         self.assertRaises(Exception,assertfunc)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testGetConnection(self,FakeThread):
+    "Test that getconnection returns a NimueConnection."
+    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=1) as pool:
+      with contextlib.closing(pool.getconnection()) as conn:
+        self.assertTrue(isinstance(conn,nimue.NimueConnection))
+
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testGetAtFreeZero(self,FakeThread):
     "Test getconnection when no free connections"
     with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=1) as pool:
@@ -262,11 +269,6 @@ class ConnectionTests(unittest.TestCase):
     curs.execute("create table updtest (id integer)")
     self.conn.commit()
     self.pool=nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=10)
-
-  def testGetConnection(self):
-    "Test that getconnection returns a NimueConnection."
-    with contextlib.closing(self.pool.getconnection()) as conn:
-      self.assertTrue(isinstance(conn,nimue.NimueConnection))
 
   def testClose(self):
     "Test connection close returns connection to pool free list."
