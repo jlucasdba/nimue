@@ -3,9 +3,10 @@
 import contextlib
 import logging
 import importlib
-import nimue.callback
 import threading
 import time
+
+from . import callback
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ class NimueConnectionPool:
   recommended usage. It's important to note that the close() method blocks until all connections are returned to the pool,
   so it is important not to leak connections, and return them when not in use. Use of context managers is strongly encouraged.
   """
-  def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=None,poolmin=10,poolmax=20,cleanup_interval=60,idle_timeout=300,healthcheck_on_getconnection=True,healthcheck_callback=nimue.callback.healthcheck_callback_std):
+  def __init__(self,connfunc,connargs=None,connkwargs=None,poolinit=None,poolmin=10,poolmax=20,cleanup_interval=60,idle_timeout=300,healthcheck_on_getconnection=True,healthcheck_callback=callback.healthcheck_callback_std):
     """
     :param connfunc: (required) A callable that returns a DBAPI 2.0 compliant Connection object.
     :param connargs: Iterable list of args to be passed to connfunc.
