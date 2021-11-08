@@ -39,6 +39,14 @@ This is a fully functioning web app, returning a json document with a list of ta
 
 Although not specified by PEP 249, all the major database drivers use Connection's context manager to wrap a transaction (as seen in the example), rather than the open/close cycle of a connection. This might not be the behavior you expect. Fortunately contextlib provides the closing() function, which provides a context manager that calls close() on exit. Using it is strongly encouraged.
 
+### Status
+Nimue is currently in a pre-release state. Core functionality should all work, and the interface will probably remain mostly stable, but no promises until 1.0. In particular, all errors raise raw Exception right now - custom exception classes remain to be added.
+
+#### TODO
+- Full documentation
+- SQLAlchemy interoperability
+- Custom exception classes
+
 ### Installation
 
 Nimue can be installed with pip. You can also download from the releases page if you're feeling adventurous.
