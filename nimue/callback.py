@@ -3,7 +3,7 @@
 def healthcheck_callback_std(conn,dbmodule,logger):
   return healthcheck_callback_base(conn,dbmodule,logger,"SELECT 1")
 
-def healthcheck_callback_oracle(conn):
+def healthcheck_callback_oracle(conn,dbmodule,logger):
   return healthcheck_callback_base(conn,dbmodule,logger,"SELECT 1 FROM DUAL")
 
 def healthcheck_callback_base(conn,dbmodule,logger,query):
