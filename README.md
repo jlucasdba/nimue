@@ -31,7 +31,7 @@ def index():
   return tables
 
 # context manager for pool - closes pool on exit
-with NimueConnectionPool(connfunc,initial=10,max=20) as pool:
+with NimueConnectionPool(connfunc,poolmin=10,poolmax=20) as pool:
   run(host='localhost', port=8080)
 ```
 
