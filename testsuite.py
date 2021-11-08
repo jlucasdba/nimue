@@ -3,8 +3,6 @@
 # Copyright (c) 2021 James Lucas
 
 import contextlib
-import nimue
-import nimue.nimue
 import os.path
 import shutil
 import sqlite3
@@ -13,6 +11,9 @@ import threading
 import time
 import unittest
 import unittest.mock
+
+import nimue
+import nimue.callback
 
 class FakeThread(nimue.nimue._NimueCleanupThread):
   def __init__(self,owner):
