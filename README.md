@@ -55,6 +55,9 @@ Nimue can be installed with pip. You can also download from the releases page if
 
 ```bash
 pip install nimue
+
+### Documentation
+The module is documented through docstrings - currently there's no online API documentation, but you can use a tool like pydoc or pdoc3 to generate your own.
 ```
 
 Copyright (c) 2021 James Lucas
