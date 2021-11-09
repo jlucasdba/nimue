@@ -1,5 +1,7 @@
 # Copyright (c) 2021 James Lucas
 
+import contextlib
+
 """
 Builtin callback functions, and associated support functions.
 
@@ -30,7 +32,7 @@ def healthcheck_callback_oracle(conn,dbmodule,logger):
 def healthcheck_callback_base(conn,dbmodule,logger,query):
   """Healthcheck logic the other builtin functions call. Can be used to implement a healthcheck with a custom query."""
   try:
-    with conn.cursor() as curs:
+    with contextlib.closing(conn.cursor()) as curs:
       curs.execute(query)
     conn.rollback()
   except dbmodule.OperationalError:
