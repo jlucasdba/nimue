@@ -1,7 +1,5 @@
 # Copyright (c) 2021 James Lucas
 
-import contextlib
-
 """
 Builtin callback functions, and associated support functions.
 
@@ -20,6 +18,8 @@ the raw connection object to be be checked, *dbmodule* is the database module th
 (useful for exception handling), and *logger* is the Python logging.Logger used by Nimue for logging.
 Nimue passes these parameters when calling the callback.
 """
+
+import contextlib
 
 def healthcheck_callback_std(conn,dbmodule,logger):
   """Standard healthcheck callback for SQLite, Postgres, MSSQL, etc. Runs SELECT 1 as the check query."""

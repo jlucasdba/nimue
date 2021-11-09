@@ -1,5 +1,9 @@
 # Copyright (c) 2021 James Lucas
 
+"""
+Submodule implementing core functionality.  Import "nimue" instead of importing this directly.
+"""
+
 import contextlib
 import logging
 import importlib
