@@ -354,5 +354,38 @@ class ConnectionTests(unittest.TestCase):
     self.conn.close()
     shutil.rmtree(self.tempdir)
 
+class CallbackTests(unittest.TestCase):
+  def setUp(self):
+    self.tempdir=tempfile.mkdtemp()
+    self.conn=sqlite3.connect(database=os.path.join(self.tempdir,'testdb'),check_same_thread=False)
+    curs=self.conn.cursor()
+    curs.execute("create table updtest (id integer)")
+    self.conn.commit()
+
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testStdHealthcheck(self,FakeThread):
+    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=5) as pool:
+      with contextlib.closing(pool.getconnection()) as conn:
+        r=conn._member.healthcheck()
+        self.assertTrue(r)
+
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testOracleHealthcheck(self,FakeThread):
+    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=5,healthcheck_on_getconnection=False,healthcheck_callback=nimue.callback.healthcheck_callback_oracle) as pool:
+      with contextlib.closing(pool.getconnection()) as conn:
+        r=conn._member.healthcheck()
+        self.assertFalse(r)
+      with contextlib.closing(self.conn.cursor()) as curs:
+        curs.execute("create table dual (id integer)")
+        curs.execute("insert into dual values (1)")
+      self.conn.commit()
+      with contextlib.closing(pool.getconnection()) as conn:
+        r=conn._member.healthcheck()
+        self.assertTrue(r)
+
+  def tearDown(self):
+    self.conn.close()
+    shutil.rmtree(self.tempdir)
+
 if __name__=='__main__':
   unittest.main()
