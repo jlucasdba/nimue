@@ -20,7 +20,7 @@ class _NimueSubCleanupThread(threading.Thread):
     self.owner=owner
 
   def run(self):
-    self.owner._healthcheckpool()
+    self.owner._cleanpool()
 
 class _NimueCleanupThread(threading.Thread):
   def __init__(self,owner):
@@ -217,7 +217,7 @@ class NimueConnectionPool:
       self._free.insert(0,member)
       self._lock.notify()
 
-  def _healthcheckpool(self):
+  def _cleanpool(self):
     with self._lock:
       idle=[]
       dead=[]

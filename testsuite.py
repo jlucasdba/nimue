@@ -93,7 +93,7 @@ class PoolTests(unittest.TestCase):
           x.append(pool.getconnection())
           stack.push(contextlib.closing(x[-1]))
         self.assertEqual(pool.poolstats().poolsize,4)
-      pool._healthcheckpool()
+      pool._cleanpool()
       self.assertEqual(pool.poolstats().poolsize,2)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
@@ -109,10 +109,10 @@ class PoolTests(unittest.TestCase):
       pool.poolmax=4
       self.assertEqual(pool.poolmax,4)
       self.assertEqual(pool.poolstats().poolsize,10)
-      pool._healthcheckpool()
+      pool._cleanpool()
       self.assertEqual(pool.poolstats().poolsize,4)
       pool.idle_timeout=0
-      pool._healthcheckpool()
+      pool._cleanpool()
       self.assertEqual(pool.poolstats().poolsize,2)
       self.assertEqual(pool.poolstats().poolfree,2)
       self.assertEqual(pool.poolstats().poolused,0)
@@ -130,10 +130,10 @@ class PoolTests(unittest.TestCase):
         pool.poolmax=4
         self.assertEqual(pool.poolmax,4)
         self.assertEqual(pool.poolstats().poolsize,10)
-        pool._healthcheckpool()
+        pool._cleanpool()
         self.assertEqual(pool.poolstats().poolsize,10)
         pool.idle_timeout=0
-        pool._healthcheckpool()
+        pool._cleanpool()
         self.assertEqual(pool.poolstats().poolsize,10)
         self.assertEqual(pool.poolstats().poolfree,0)
         self.assertEqual(pool.poolstats().poolused,10)
