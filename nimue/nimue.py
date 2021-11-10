@@ -432,7 +432,7 @@ class NimueConnection:
     if attr in ('_pool','_conn','_member','_closed'):
       self.__dict__[attr]=value
     else:
-      self._conn.__dict__[attr]=value
+      self._conn.__setattr__(attr,value)
 
   def __del__(self):
     if not self._closed:
