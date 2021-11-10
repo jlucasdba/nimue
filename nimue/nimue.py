@@ -80,6 +80,8 @@ class NimueConnectionPool:
       raise Exception("Value for cleanup_interval must be greater than 0")
     if idle_timeout < 0:
       raise Exception("Value for idle_timeout cannot be less than 0")
+    if not callable(healthcheck_callback):
+      raise Exception("Value for healthcheck_callback must be callable")
 
     # set internal values from parameters
     self._connfunc=connfunc
