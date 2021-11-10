@@ -263,10 +263,6 @@ class NimueConnectionPool:
       # may still be in excess of poolmax though.
       poolmax_excess=len(self._pool) - self._poolmax
       if poolmax_excess > 0:
-        if len(self._free) >= poolmax_excess:
-          removenum=poolmax_excess
-        else:
-          removenum=len(self._free)
         for x in sorted(sorted(enumerate(self._free),key=lambda z: (now-z[1]._touch_time, z[1]._create_time), reverse=True)[0:poolmax_excess],key=lambda z: z[0],reverse=True):
           del self._pool[x[1]]
           del self._free[x[0]]
