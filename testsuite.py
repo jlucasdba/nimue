@@ -118,6 +118,27 @@ class PoolTests(unittest.TestCase):
       self.assertEqual(pool.poolstats().poolused,0)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testOverMax(self,FakeThread):
+    """Test cleanup of connections beyond poolmax when there are insufficient free connections."""
+    x=[]
+    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=10) as pool:
+      with contextlib.ExitStack() as stack:
+        for y in range(0,10):
+          x.append(pool.getconnection())
+          stack.push(contextlib.closing(x[-1]))
+        self.assertEqual(pool.poolstats().poolsize,10)
+        pool.poolmax=4
+        self.assertEqual(pool.poolmax,4)
+        self.assertEqual(pool.poolstats().poolsize,10)
+        pool._healthcheckpool()
+        self.assertEqual(pool.poolstats().poolsize,10)
+        pool.idle_timeout=0
+        pool._healthcheckpool()
+        self.assertEqual(pool.poolstats().poolsize,10)
+        self.assertEqual(pool.poolstats().poolfree,0)
+        self.assertEqual(pool.poolstats().poolused,10)
+
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testDefaults(self,FakeThread):
     """Test NimueConnectionPool defaults."""
     x=[]
