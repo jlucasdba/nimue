@@ -63,7 +63,7 @@ class NimueConnectionPool:
     self._pool={}
     self._free=[]
     self._use={}
-    self._healthcheckthread=_NimueCleanupThread(self)
+    self._cleanupthread=_NimueCleanupThread(self)
 
     # parameter validations
     if poolmin < 0:
@@ -115,11 +115,11 @@ class NimueConnectionPool:
     self._dbmodule=self._finddbmodule()
 
     # start the healthcheck thread
-    self._healthcheckthread.start()
+    self._cleanupthread.start()
 
   def __del__(self):
     # only call close if at least these attributes have been initialized already
-    if len(set(('_lock','_exitevent','_pool','_free','_use','_healthcheckthread')) & set(vars(self))) > 0:
+    if len(set(('_lock','_exitevent','_pool','_free','_use','_cleanupthread')) & set(vars(self))) > 0:
       self.close()
 
   def __enter__(self):
@@ -380,7 +380,7 @@ class NimueConnectionPool:
     """
     # shutdown the cleanup thread
     self._exitevent.set()
-    self._healthcheckthread.join()
+    self._cleanupthread.join()
 
 class _NimueConnectionPoolMember:
   def __init__(self,owner,conn):
