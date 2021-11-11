@@ -363,6 +363,7 @@ class ConnectionTests(unittest.TestCase):
     pool.close()
 
   def tearDown(self):
+    self.pool.close()
     shutil.rmtree(self.tempdir)
 
 class CallbackTests(unittest.TestCase):
