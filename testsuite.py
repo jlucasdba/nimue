@@ -28,7 +28,6 @@ class FakeThread(nimue.nimue._NimueCleanupThread):
 class PoolTests(unittest.TestCase):
   def setUp(self):
     self.tempdir=tempfile.mkdtemp()
-    self.conn=sqlite3.connect(database=os.path.join(self.tempdir,'testdb'),check_same_thread=False)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testGetters(self,FakeThread):
@@ -335,14 +334,12 @@ class PoolTests(unittest.TestCase):
       self.assertEqual(pool.poolstats().poolfree,5)
 
   def tearDown(self):
-    self.conn.close()
     shutil.rmtree(self.tempdir)
 
 class ConnectionTests(unittest.TestCase):
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def setUp(self,FakeThread):
     self.tempdir=tempfile.mkdtemp()
-    self.conn=sqlite3.connect(database=os.path.join(self.tempdir,'testdb'),check_same_thread=False)
     self.pool=nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=10)
 
   def testClose(self):
@@ -366,13 +363,11 @@ class ConnectionTests(unittest.TestCase):
     pool.close()
 
   def tearDown(self):
-    self.conn.close()
     shutil.rmtree(self.tempdir)
 
 class CallbackTests(unittest.TestCase):
   def setUp(self):
     self.tempdir=tempfile.mkdtemp()
-    self.conn=sqlite3.connect(database=os.path.join(self.tempdir,'testdb'),check_same_thread=False)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testStdHealthcheck(self,FakeThread):
@@ -396,7 +391,6 @@ class CallbackTests(unittest.TestCase):
         self.assertTrue(r)
 
   def tearDown(self):
-    self.conn.close()
     shutil.rmtree(self.tempdir)
 
 if __name__=='__main__':
