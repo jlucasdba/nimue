@@ -29,9 +29,6 @@ class PoolTests(unittest.TestCase):
   def setUp(self):
     self.tempdir=tempfile.mkdtemp()
     self.conn=sqlite3.connect(database=os.path.join(self.tempdir,'testdb'),check_same_thread=False)
-    curs=self.conn.cursor()
-    curs.execute("create table updtest (id integer)")
-    self.conn.commit()
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testGetters(self,FakeThread):
@@ -346,9 +343,6 @@ class ConnectionTests(unittest.TestCase):
   def setUp(self,FakeThread):
     self.tempdir=tempfile.mkdtemp()
     self.conn=sqlite3.connect(database=os.path.join(self.tempdir,'testdb'),check_same_thread=False)
-    curs=self.conn.cursor()
-    curs.execute("create table updtest (id integer)")
-    self.conn.commit()
     self.pool=nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=10)
 
   def testClose(self):
@@ -379,9 +373,6 @@ class CallbackTests(unittest.TestCase):
   def setUp(self):
     self.tempdir=tempfile.mkdtemp()
     self.conn=sqlite3.connect(database=os.path.join(self.tempdir,'testdb'),check_same_thread=False)
-    curs=self.conn.cursor()
-    curs.execute("create table updtest (id integer)")
-    self.conn.commit()
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testStdHealthcheck(self,FakeThread):
