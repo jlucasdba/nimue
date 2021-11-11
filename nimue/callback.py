@@ -39,4 +39,5 @@ def healthcheck_callback_base(conn,dbmodule,logger,query):
     return False
   except:
     logger.exception('Unexpected exception during healthcheck. Connection will be invalidated.')
+    return False
   return True
