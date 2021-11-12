@@ -40,6 +40,17 @@ elif dbdriver=='psycopg2':
 
   def final_cleanup():
     pass
+elif dbdriver=='pyodbc':
+  import pyodbc
+  connfunc=pyodbc.connect
+  connargs=('DSN=MSSQLServerDatabase',)
+  connkwargs=dict()
+
+  def driver_cleanup():
+    pass
+
+  def final_cleanup():
+    pass
 else:
   raise Exception("Invalid dbdriver")
 
@@ -431,7 +442,7 @@ class CallbackTests(unittest.TestCase):
       with contextlib.closing(pool.getconnection()) as conn:
         if dbdriver=='sqlite3':
           conn.isolation_level=None
-        elif dbdriver=='psycopg2':
+        elif dbdriver in ('psycopg2','pyodbc'):
           conn.autocommit=True
         r=conn._member.healthcheck()
         self.assertTrue(r)
