@@ -417,6 +417,7 @@ class CallbackTests(unittest.TestCase):
           stack.callback(logging.disable,level=logging.NOTSET)
           r=conn._member.healthcheck()
           self.assertFalse(r)
+        conn.rollback()
         with contextlib.closing(conn.cursor()) as curs:
           curs.execute("create table dual (id integer)")
           curs.execute("insert into dual values (1)")
