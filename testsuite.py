@@ -3,6 +3,7 @@
 # Copyright (c) 2021 James Lucas
 
 import contextlib
+import logging
 import os.path
 import shutil
 import tempfile
@@ -411,8 +412,11 @@ class CallbackTests(unittest.TestCase):
   def testOracleHealthcheck(self,FakeThread):
     with self.createpool(poolmin=1,poolmax=5,poolinit=5,healthcheck_on_getconnection=False,healthcheck_callback=nimue.callback.healthcheck_callback_oracle) as pool:
       with contextlib.closing(pool.getconnection()) as conn:
-        r=conn._member.healthcheck()
-        self.assertFalse(r)
+        with contextlib.ExitStack() as stack:
+          logging.disable(level=logging.CRITICAL)
+          stack.callback(logging.disable,level=logging.NOTSET)
+          r=conn._member.healthcheck()
+          self.assertFalse(r)
         with contextlib.closing(conn.cursor()) as curs:
           curs.execute("create table dual (id integer)")
           curs.execute("insert into dual values (1)")
