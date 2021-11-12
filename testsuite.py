@@ -5,7 +5,6 @@
 import contextlib
 import os.path
 import shutil
-import sqlite3
 import tempfile
 import threading
 import time
@@ -14,6 +13,34 @@ import unittest.mock
 
 import nimue
 import nimue.callback
+
+dbdriver='sqlite3'
+
+if dbdriver=='sqlite3':
+  import sqlite3
+  tempdir=tempfile.mkdtemp()
+  connfunc=sqlite3.connect
+  connargs=(os.path.join(tempdir,'testdb'),)
+  connkwargs={'check_same_thread': False}
+
+  def driver_cleanup():
+    os.unlink(os.path.join(tempdir,'testdb'))
+
+  def final_cleanup():
+    shutil.rmtree(tempdir)
+elif dbdriver=='psycopg2':
+  import psycopg2
+  connfunc=psycopg2.connect
+  connargs=list()
+  connkwargs={'user': 'postgres','dbname': 'postgres'}
+
+  def driver_cleanup():
+    pass
+
+  def final_cleanup():
+    pass
+else:
+  raise Exception("Invalid dbdriver")
 
 class FakeThread(nimue.nimue._NimueCleanupThread):
   def __init__(self,owner):
@@ -27,15 +54,17 @@ class FakeThread(nimue.nimue._NimueCleanupThread):
 
 class PoolTests(unittest.TestCase):
   def setUp(self):
-    self.tempdir=tempfile.mkdtemp()
+    def createpool(**kwargs):
+      return nimue.NimueConnectionPool(connfunc,connargs,connkwargs,**kwargs)
+    self.createpool=createpool
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testGetters(self,FakeThread):
     """Test NimueConnectionPool property getters."""
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=4) as pool:
-      self.assertEqual(pool.connfunc,sqlite3.connect)
-      self.assertEqual(pool.connargs,(os.path.join(self.tempdir,'testdb'),))
-      self.assertEqual(pool.connkwargs,{'check_same_thread': False})
+    with self.createpool(poolmin=2,poolmax=4) as pool:
+      self.assertEqual(pool.connfunc,connfunc)
+      self.assertEqual(pool.connargs,connargs)
+      self.assertEqual(pool.connkwargs,connkwargs)
       self.assertEqual(pool.poolmin,2)
       self.assertEqual(pool.poolmax,4)
       self.assertEqual(pool.cleanup_interval,60)
@@ -44,7 +73,7 @@ class PoolTests(unittest.TestCase):
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testSetterValidation(self,FakeThread):
     """Test validation of NimueConnectionPool property setters."""
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=0,poolmax=5) as pool:
+    with self.createpool(poolmin=0,poolmax=5) as pool:
       with self.assertRaises(Exception):
         pool.poolmin=-1
       with self.assertRaises(Exception):
@@ -52,27 +81,27 @@ class PoolTests(unittest.TestCase):
       with self.assertRaises(Exception):
         pool.poolmax=0
 
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=4,poolmax=5) as pool:
+    with self.createpool(poolmin=4,poolmax=5) as pool:
       with self.assertRaises(Exception):
         pool.poolmax=3
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testInitialSizeMin(self,FakeThread):
     """Test poolmin during pool initialization."""
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=4) as pool:
+    with self.createpool(poolmin=2,poolmax=4) as pool:
       self.assertEqual(pool.poolstats().poolsize,2)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testInitialSizeInit(self,FakeThread):
     """Test poolinit during pool initialization."""
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=4,poolinit=3) as pool:
+    with self.createpool(poolmin=2,poolmax=4,poolinit=3) as pool:
       self.assertEqual(pool.poolstats().poolsize,3)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testMaxSize(self,FakeThread):
     """Test poolmax during pool initialization."""
     x=[]
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=4) as pool:
+    with self.createpool(poolmin=2,poolmax=4) as pool:
       with contextlib.ExitStack() as stack:
         for y in range(0,4):
           x.append(pool.getconnection())
@@ -83,7 +112,7 @@ class PoolTests(unittest.TestCase):
   def testIdleCleanup(self,FakeThread):
     """Test cleanup of idle connections."""
     x=[]
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=4,idle_timeout=0) as pool:
+    with self.createpool(poolmin=2,poolmax=4,idle_timeout=0) as pool:
       with contextlib.ExitStack() as stack:
         for y in range(0,4):
           x.append(pool.getconnection())
@@ -96,7 +125,7 @@ class PoolTests(unittest.TestCase):
   def testOverMax(self,FakeThread):
     """Test cleanup of connections beyond poolmax."""
     x=[]
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=10) as pool:
+    with self.createpool(poolmin=2,poolmax=10) as pool:
       with contextlib.ExitStack() as stack:
         for y in range(0,10):
           x.append(pool.getconnection())
@@ -117,7 +146,7 @@ class PoolTests(unittest.TestCase):
   def testOverMax(self,FakeThread):
     """Test cleanup of connections beyond poolmax when there are insufficient free connections."""
     x=[]
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=10) as pool:
+    with self.createpool(poolmin=2,poolmax=10) as pool:
       with contextlib.ExitStack() as stack:
         for y in range(0,10):
           x.append(pool.getconnection())
@@ -138,7 +167,7 @@ class PoolTests(unittest.TestCase):
   def testDefaults(self,FakeThread):
     """Test NimueConnectionPool defaults."""
     x=[]
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False}) as pool:
+    with self.createpool() as pool:
       self.assertEqual(pool.poolinit,None)
       self.assertEqual(pool.poolmin,10)
       self.assertEqual(pool.poolmax,20)
@@ -151,23 +180,23 @@ class PoolTests(unittest.TestCase):
     x=[]
     # poolmin cannot be less than 0
     with self.assertRaises(Exception):
-      nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=-1,poolmax=10)
+      self.createpool(poolmin=-1,poolmax=10)
     # poolmin cannot be greater than poolmax
     with self.assertRaises(Exception):
-      nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=11,poolmax=10)
+      self.createpool(poolmin=11,poolmax=10)
     # poolmax cannot be less than 1
     with self.assertRaises(Exception):
-      nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=0,poolmax=0)
+      self.createpool(poolmin=0,poolmax=0)
     # poolmax cannot be less than poolmin
     with self.assertRaises(Exception):
-      nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=5,poolmax=4)
+      self.createpool(poolmin=5,poolmax=4)
     # poolinit cannot be less than poolmin
     with self.assertRaises(Exception):
-      nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolinit=4,poolmin=5,poolmax=10)
+      self.createpool(poolinit=4,poolmin=5,poolmax=10)
     # poolinit cannot be greater than poolmax
     with self.assertRaises(Exception):
-      nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolinit=11,poolmin=5,poolmax=10)
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=10) as pool:
+      self.createpool(poolinit=11,poolmin=5,poolmax=10)
+    with self.createpool(poolmin=2,poolmax=10) as pool:
       with contextlib.ExitStack() as stack:
         for y in range(0,10):
           x.append(pool.getconnection())
@@ -202,14 +231,14 @@ class PoolTests(unittest.TestCase):
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testGetConnection(self,FakeThread):
     """Test that getconnection returns a NimueConnection."""
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=1) as pool:
+    with self.createpool(poolmin=1,poolmax=5,poolinit=1) as pool:
       with contextlib.closing(pool.getconnection()) as conn:
         self.assertTrue(isinstance(conn,nimue.NimueConnection))
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testGetAtFreeZero(self,FakeThread):
     """Test getconnection when no free connections"""
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=1) as pool:
+    with self.createpool(poolmin=1,poolmax=5,poolinit=1) as pool:
       self.assertEqual(pool.poolstats().poolsize,1)
       self.assertEqual(pool.poolstats().poolused,0)
       self.assertEqual(pool.poolstats().poolfree,1)
@@ -227,7 +256,7 @@ class PoolTests(unittest.TestCase):
   def testGetAtMaxZeroTimeout(self,FakeThread):
     """Test getconnection when pool is at max size, with zero timeout"""
     x=[]
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=5) as pool:
+    with self.createpool(poolmin=1,poolmax=5,poolinit=5) as pool:
       self.assertEqual(pool.poolstats().poolsize,5)
       self.assertEqual(pool.poolstats().poolused,0)
       self.assertEqual(pool.poolstats().poolfree,5)
@@ -253,7 +282,7 @@ class PoolTests(unittest.TestCase):
   def testGetAtMaxNonZeroTimeout(self,FakeThread):
     """Test getconnection when pool is at max size, with (small) non-zero timeout"""
     x=[]
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=5) as pool:
+    with self.createpool(poolmin=1,poolmax=5,poolinit=5) as pool:
       self.assertEqual(pool.poolstats().poolsize,5)
       self.assertEqual(pool.poolstats().poolused,0)
       self.assertEqual(pool.poolstats().poolfree,5)
@@ -287,7 +316,7 @@ class PoolTests(unittest.TestCase):
         endevent.wait()
 
     t=[]
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=1) as pool:
+    with self.createpool(poolmin=1,poolmax=5,poolinit=1) as pool:
       # launch 5 threads which will consume all connections in pool
       for i in range(0,5):
         t.append({'getevent': threading.Event(),'waitevent': threading.Event(),'endevent': threading.Event()})
@@ -333,14 +362,14 @@ class PoolTests(unittest.TestCase):
       self.assertEqual(pool.poolstats().poolused,0)
       self.assertEqual(pool.poolstats().poolfree,5)
 
-  def tearDown(self):
-    shutil.rmtree(self.tempdir)
-
 class ConnectionTests(unittest.TestCase):
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def setUp(self,FakeThread):
-    self.tempdir=tempfile.mkdtemp()
-    self.pool=nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=2,poolmax=10)
+    def createpool(**kwargs):
+      return nimue.NimueConnectionPool(connfunc,connargs,connkwargs,**kwargs)
+    self.createpool=createpool
+
+    self.pool=createpool(poolmin=2,poolmax=10)
 
   def testClose(self):
     """Test connection close returns connection to pool free list."""
@@ -351,7 +380,7 @@ class ConnectionTests(unittest.TestCase):
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testCloseWithClosedPool(self,FakeThread):
-    pool=nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb2'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=5)
+    pool=self.createpool(poolmin=1,poolmax=5,poolinit=5)
     conn=pool.getconnection()
     curs=conn.cursor()
     curs.execute("SELECT 1")
@@ -364,35 +393,44 @@ class ConnectionTests(unittest.TestCase):
 
   def tearDown(self):
     self.pool.close()
-    shutil.rmtree(self.tempdir)
 
 class CallbackTests(unittest.TestCase):
   def setUp(self):
-    self.tempdir=tempfile.mkdtemp()
+    def createpool(**kwargs):
+      return nimue.NimueConnectionPool(connfunc,connargs,connkwargs,**kwargs)
+    self.createpool=createpool
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testStdHealthcheck(self,FakeThread):
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=5) as pool:
+    with self.createpool(poolmin=1,poolmax=5,poolinit=5) as pool:
       with contextlib.closing(pool.getconnection()) as conn:
         r=conn._member.healthcheck()
         self.assertTrue(r)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testOracleHealthcheck(self,FakeThread):
-    with nimue.NimueConnectionPool(sqlite3.connect,(os.path.join(self.tempdir,'testdb'),),{'check_same_thread': False},poolmin=1,poolmax=5,poolinit=5,healthcheck_on_getconnection=False,healthcheck_callback=nimue.callback.healthcheck_callback_oracle) as pool:
+    with self.createpool(poolmin=1,poolmax=5,poolinit=5,healthcheck_on_getconnection=False,healthcheck_callback=nimue.callback.healthcheck_callback_oracle) as pool:
       with contextlib.closing(pool.getconnection()) as conn:
         r=conn._member.healthcheck()
         self.assertFalse(r)
-      with contextlib.closing(self.conn.cursor()) as curs:
-        curs.execute("create table dual (id integer)")
-        curs.execute("insert into dual values (1)")
-      self.conn.commit()
-      with contextlib.closing(pool.getconnection()) as conn:
+        with contextlib.closing(conn.cursor()) as curs:
+          curs.execute("create table dual (id integer)")
+          curs.execute("insert into dual values (1)")
+        conn.commit()
         r=conn._member.healthcheck()
         self.assertTrue(r)
 
-  def tearDown(self):
-    shutil.rmtree(self.tempdir)
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testRollbackAutocommit(self,FakeThread):
+    with self.createpool(poolmin=1,poolmax=5,poolinit=5) as pool:
+      with contextlib.closing(pool.getconnection()) as conn:
+        if dbdriver=='sqlite3':
+          conn.isolation_level=None
+        elif dbdriver=='psycopg2':
+          conn.autocommit=True
+        r=conn._member.healthcheck()
+        self.assertTrue(r)
 
 if __name__=='__main__':
   unittest.main()
+  final_cleanup()
