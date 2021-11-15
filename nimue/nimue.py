@@ -396,7 +396,7 @@ class _NimueConnectionPoolMember:
   def healthcheck(self):
     with self._owner._lock:
       dbmodule=self._owner._dbmodule
-    r=self._healthcheck_callback(self._conn,dbmodule,logger)
+    r=self._healthcheck_callback(self._conn,dbmodule)
     self._check_time=time.monotonic()
     return r
 

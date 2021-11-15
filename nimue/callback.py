@@ -20,16 +20,19 @@ Nimue passes these parameters when calling the callback.
 """
 
 import contextlib
+import logging
 
-def healthcheck_callback_std(conn,dbmodule,logger):
+logger = logging.getLogger(__name__)
+
+def healthcheck_callback_std(conn,dbmodule):
   """Standard healthcheck callback for SQLite, Postgres, MSSQL, etc. Runs SELECT 1 as the check query."""
-  return healthcheck_callback_base(conn,dbmodule,logger,"SELECT 1")
+  return healthcheck_callback_base(conn,dbmodule,"SELECT 1")
 
-def healthcheck_callback_oracle(conn,dbmodule,logger):
+def healthcheck_callback_oracle(conn,dbmodule):
   """Healthcheck callback for Oracle. Runs SELECT 1 FROM DUAL as the check query."""
-  return healthcheck_callback_base(conn,dbmodule,logger,"SELECT 1 FROM DUAL")
+  return healthcheck_callback_base(conn,dbmodule,"SELECT 1 FROM DUAL")
 
-def healthcheck_callback_base(conn,dbmodule,logger,query):
+def healthcheck_callback_base(conn,dbmodule,query):
   """Healthcheck logic the other builtin functions call. Can be used to implement a healthcheck with a custom query."""
   try:
     with contextlib.closing(conn.cursor()) as curs:
