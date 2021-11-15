@@ -433,9 +433,9 @@ class CallbackTests(unittest.TestCase):
           with contextlib.ExitStack() as stack:
             if dbdriver not in ('cx_Oracle'):
               stack.callback(conn.commit)
-              stack.callback(curs.execute,"drop table dual")
-              curs.execute("create table dual (id integer)")
-              curs.execute("insert into dual values (1)")
+              stack.callback(curs.execute,"DROP TABLE DUAL")
+              curs.execute("CREATE TABLE DUAL (ID INTEGER)")
+              curs.execute("INSERT INTO DUAL VALUES (1)")
               conn.commit()
             r=conn._member.healthcheck()
             self.assertTrue(r)
