@@ -430,11 +430,16 @@ class CallbackTests(unittest.TestCase):
           self.assertFalse(r)
         conn.rollback()
         with contextlib.closing(conn.cursor()) as curs:
-          curs.execute("create table dual (id integer)")
-          curs.execute("insert into dual values (1)")
+          with contextlib.ExitStack() as stack:
+            if dbdriver not in ('cx_Oracle'):
+              stack.callback(conn.commit)
+              stack.callback(curs.execute,"drop table dual")
+              curs.execute("create table dual (id integer)")
+              curs.execute("insert into dual values (1)")
+              conn.commit()
+            r=conn._member.healthcheck()
+            self.assertTrue(r)
         conn.commit()
-        r=conn._member.healthcheck()
-        self.assertTrue(r)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testRollbackAutocommit(self,FakeThread):
