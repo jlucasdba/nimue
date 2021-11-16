@@ -301,9 +301,11 @@ class NimueConnectionPool:
     :param blocking: Whether to block if no connections are available. Defaults to True, meaning calls may block.
     :param timeout: Timeout after which call will return None if no connections are available. No effect if blocking is False. Must be 0 or greater.
 
-    :returns: Returns a NimueConnection object, or None if one is not available in nonblocking mode, or when a timeout is reached.
+    :returns: Returns a NimueConnection object, or None if one is not available.
+    If blocking is set to False, a getconnection attempts to return a free connection from the pool. If all connections are in use, and no more can be added, None is returned. Otherwise, If healthcheck_on_getconnection is set for the pool, a connection will be healthchecked before being returned to the caller. If the healthcheck fails, another connection will be tried (and the original connection discarded from the pool). If all available connections fail their healthcheck, a single new connection attempt will be made. If this attempt fails, an Exception will be raised (see below). If the connection succeeds, but the new connection subsequently fails its healthcheck, None is returned. If healthcheck_on_getconnection is set to False, behavior is similar, but connections will not be healthchecked. In this case an unhealthy connection may be returned to the caller, and it is the caller's responsibility to handle that case.
+    If blocking is set to True, behavior is same as described above, but if no connections are available, the method will block until one becomes available. Also, if healthcheck_on_getconnection is True, and a new connection needs to be opened, a failed healthcheck on the new connection will retry repeatedly until a healthy connection can be obtained. An Exception may still be raised on a total failure to connect however (see below). If a timeout is also specified, the above behavior continues until the timeout is elapsed. If no connection could be obtained, None is returned, as when blocking is set to False.
 
-    :raises Exception: If there are no available connections in the pool, and there is sufficient capacity, a new connection attempt is made. Opening the new connection could raise an exception. In this case, the calling code is responsible for catching the exception and retrying.
+    :raises Exception: If there are no available connections in the pool, and there is sufficient capacity, a new connection attempt is made. Opening the new connection could raise an exception (from the database driver). In this case, the calling code is responsible for catching the exception and retrying.
     """
     if timeout is not None and timeout < 0:
       raise Exception("Timeout must be 0 or greater")
@@ -324,6 +326,7 @@ class NimueConnectionPool:
       if self._exitevent.is_set():
         raise Exception("Pool %s has already been closed." % self)
 
+      badnewconns=0
       while True:
         # if there's a free connection in the pool, we are good
         if len(self._free) > 0:
@@ -338,6 +341,11 @@ class NimueConnectionPool:
           return NimueConnection(self,member)
         # if there's not, but there's room to add a new connection, we are also good
         elif len(self._pool.keys()) < self._poolmax:
+          # if we've been failing healthchecks on new connections though, check if
+          # we are over time or in nonblocking mode
+          if badnewconns > 0:
+            if (blocking and timeout-(time.monotonic()-entertime) <= 0) or not blocking:
+              return None
           self._addconnection()
           member=self._free.pop(0)
           if self._healthcheck_on_getconnection:
@@ -345,6 +353,7 @@ class NimueConnectionPool:
             if not member.healthcheck():
               member.close()
               del self._pool[member]
+              badnewconns+=1
               continue
           self._use[member]=1
           return NimueConnection(self,member)
