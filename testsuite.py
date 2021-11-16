@@ -419,7 +419,7 @@ class CallbackTests(unittest.TestCase):
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testStdHealthcheck(self,FakeThread):
     """Test healthcheck_callback_std"""
-    with self.createpool(poolmin=1,poolmax=5,poolinit=5) as pool:
+    with self.createpool(poolmin=1,poolmax=5,poolinit=5,healthcheck_callback=nimue.callback.healthcheck_callback_std) as pool:
       with contextlib.closing(pool.getconnection()) as conn:
         r=conn._member.healthcheck()
         self.assertTrue(r)
