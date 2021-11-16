@@ -25,6 +25,7 @@ if dbdriver=='sqlite3':
   connkwargs={'check_same_thread': False}
   poolkwargs=dict()
   hasdual=False
+  notaballowed=True
 
   def driver_cleanup():
     os.unlink(os.path.join(tempdir,'testdb'))
@@ -41,6 +42,7 @@ elif dbdriver=='psycopg2':
   connkwargs={'user': 'postgres','dbname': 'postgres'}
   poolkwargs=dict()
   hasdual=False
+  notaballowed=True
 
   def driver_cleanup():
     pass
@@ -57,6 +59,7 @@ elif dbdriver=='pyodbc':
   connkwargs=dict()
   poolkwargs=dict()
   hasdual=False
+  notaballowed=True
 
   def driver_cleanup():
     pass
@@ -73,6 +76,7 @@ elif dbdriver=='mariadb':
   connkwargs={'user': 'root', 'database': 'mysql'}
   poolkwargs=dict()
   hasdual=True
+  notaballowed=True
 
   def driver_cleanup():
     pass
@@ -89,6 +93,7 @@ elif dbdriver=='mysql.connector':
   connkwargs={'user': 'root', 'database': 'mysql', 'use_pure': False}
   poolkwargs=dict()
   hasdual=True
+  notaballowed=True
 
   def driver_cleanup():
     pass
@@ -447,7 +452,12 @@ class ConnectionTests(unittest.TestCase):
     pool=self.createpool(poolmin=1,poolmax=5,poolinit=5)
     conn=pool.getconnection()
     curs=conn.cursor()
-    curs.execute("SELECT 1")
+    if notaballowed:
+      curs.execute("SELECT 1")
+    elif hasdual:
+      curs.execute("SELECT 1 FROM DUAL")
+    else:
+      raise Exception("Both notaballowed and hasdual are false, can't continue")
     pool.close()
     for x in curs:
       self.assertEqual(x[0],1)
@@ -461,13 +471,25 @@ class ConnectionTests(unittest.TestCase):
 class CallbackTests(unittest.TestCase):
   def setUp(self):
     def createpool(**kwargs):
-      return nimue.NimueConnectionPool(connfunc,connargs,connkwargs,**kwargs)
+      createpoolkwargs=poolkwargs.copy()
+      createpoolkwargs.update(kwargs)
+      return nimue.NimueConnectionPool(connfunc,connargs,connkwargs,**createpoolkwargs)
     self.createpool=createpool
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testStdHealthcheck(self,FakeThread):
     """Test healthcheck_callback_std"""
     with self.createpool(poolmin=1,poolmax=5,poolinit=5,healthcheck_callback=nimue.callback.healthcheck_callback_std) as pool:
+      # Jump through some hoops here to accomadate databases that can't handle the standard healthcheck
+      if not notaballowed:
+        with contextlib.ExitStack() as stack:
+          logging.disable(level=logging.CRITICAL)
+          stack.callback(logging.disable,level=logging.NOTSET)
+          conn=pool.getconnection(blocking=False)
+          self.assertTrue(conn is None)
+          if conn is not None:
+            conn.close()
+        return
       with contextlib.closing(pool.getconnection()) as conn:
         r=conn._member.healthcheck()
         self.assertTrue(r)
