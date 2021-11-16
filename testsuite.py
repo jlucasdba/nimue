@@ -23,6 +23,7 @@ if dbdriver=='sqlite3':
   connfunc=sqlite3.connect
   connargs=(os.path.join(tempdir,'testdb'),)
   connkwargs={'check_same_thread': False}
+  hasdual=False
 
   def driver_cleanup():
     os.unlink(os.path.join(tempdir,'testdb'))
@@ -34,6 +35,7 @@ elif dbdriver=='psycopg2':
   connfunc=psycopg2.connect
   connargs=list()
   connkwargs={'user': 'postgres','dbname': 'postgres'}
+  hasdual=False
 
   def driver_cleanup():
     pass
@@ -45,6 +47,7 @@ elif dbdriver=='pyodbc':
   connfunc=pyodbc.connect
   connargs=('DSN=MSSQLServerDatabase',)
   connkwargs=dict()
+  hasdual=False
 
   def driver_cleanup():
     pass
@@ -427,11 +430,14 @@ class CallbackTests(unittest.TestCase):
           logging.disable(level=logging.CRITICAL)
           stack.callback(logging.disable,level=logging.NOTSET)
           r=conn._member.healthcheck()
-          self.assertFalse(r)
+          if hasdual:
+            self.assertTrue(r)
+          else:
+            self.assertFalse(r)
         conn.rollback()
         with contextlib.closing(conn.cursor()) as curs:
           with contextlib.ExitStack() as stack:
-            if dbdriver not in ('cx_Oracle'):
+            if not hasdual:
               stack.callback(conn.commit)
               stack.callback(curs.execute,"DROP TABLE DUAL")
               curs.execute("CREATE TABLE DUAL (ID INTEGER)")
