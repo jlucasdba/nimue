@@ -332,7 +332,7 @@ class NimueConnectionPool:
             # if we fail healthcheck, remove from pool and start over
             if not member.healthcheck():
               member.close()
-              del self.pool[member]
+              del self._pool[member]
               continue
           self._use[member]=1
           return NimueConnection(self,member)
@@ -344,7 +344,7 @@ class NimueConnectionPool:
           # go ahead and healthcheck the new connection as well
             if not member.healthcheck():
               member.close()
-              del self.pool[member]
+              del self._pool[member]
               continue
           self._use[member]=1
           return NimueConnection(self,member)
