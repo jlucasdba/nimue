@@ -435,17 +435,6 @@ class CallbackTests(unittest.TestCase):
           else:
             self.assertFalse(r)
         conn.rollback()
-        with contextlib.closing(conn.cursor()) as curs:
-          with contextlib.ExitStack() as stack:
-            if not hasdual:
-              stack.callback(conn.commit)
-              stack.callback(curs.execute,"DROP TABLE DUAL")
-              curs.execute("CREATE TABLE DUAL (ID INTEGER)")
-              curs.execute("INSERT INTO DUAL VALUES (1)")
-              conn.commit()
-            r=conn._member.healthcheck()
-            self.assertTrue(r)
-        conn.commit()
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testRollbackAutocommit(self,FakeThread):
