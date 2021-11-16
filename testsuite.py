@@ -23,6 +23,7 @@ if dbdriver=='sqlite3':
   connfunc=sqlite3.connect
   connargs=(os.path.join(tempdir,'testdb'),)
   connkwargs={'check_same_thread': False}
+  poolkwargs=dict()
   hasdual=False
 
   def driver_cleanup():
@@ -38,6 +39,7 @@ elif dbdriver=='psycopg2':
   connfunc=psycopg2.connect
   connargs=list()
   connkwargs={'user': 'postgres','dbname': 'postgres'}
+  poolkwargs=dict()
   hasdual=False
 
   def driver_cleanup():
@@ -53,6 +55,7 @@ elif dbdriver=='pyodbc':
   connfunc=pyodbc.connect
   connargs=('DSN=MSSQLServerDatabase',)
   connkwargs=dict()
+  poolkwargs=dict()
   hasdual=False
 
   def driver_cleanup():
@@ -68,6 +71,7 @@ elif dbdriver=='mariadb':
   connfunc=mariadb.connect
   connargs=list()
   connkwargs={'user': 'root', 'database': 'mysql'}
+  poolkwargs=dict()
   hasdual=True
 
   def driver_cleanup():
@@ -83,6 +87,7 @@ elif dbdriver=='mysql.connector':
   connfunc=mysql.connector.connect
   connargs=list()
   connkwargs={'user': 'root', 'database': 'mysql', 'use_pure': False}
+  poolkwargs=dict()
   hasdual=True
 
   def driver_cleanup():
@@ -109,7 +114,9 @@ class FakeThread(nimue.nimue._NimueCleanupThread):
 class PoolTests(unittest.TestCase):
   def setUp(self):
     def createpool(**kwargs):
-      return nimue.NimueConnectionPool(connfunc,connargs,connkwargs,**kwargs)
+      createpoolkwargs=poolkwargs.copy()
+      createpoolkwargs.update(kwargs)
+      return nimue.NimueConnectionPool(connfunc,connargs,connkwargs,**createpoolkwargs)
     self.createpool=createpool
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
@@ -420,7 +427,9 @@ class ConnectionTests(unittest.TestCase):
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def setUp(self,FakeThread):
     def createpool(**kwargs):
-      return nimue.NimueConnectionPool(connfunc,connargs,connkwargs,**kwargs)
+      createpoolkwargs=poolkwargs.copy()
+      createpoolkwargs.update(kwargs)
+      return nimue.NimueConnectionPool(connfunc,connargs,connkwargs,**createpoolkwargs)
     self.createpool=createpool
 
     self.pool=createpool(poolmin=2,poolmax=10)
