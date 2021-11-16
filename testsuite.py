@@ -30,6 +30,9 @@ if dbdriver=='sqlite3':
 
   def final_cleanup():
     shutil.rmtree(tempdir)
+
+  def autocommit_off(conn):
+    conn.isolation_level=None
 elif dbdriver=='psycopg2':
   import psycopg2
   connfunc=psycopg2.connect
@@ -42,6 +45,9 @@ elif dbdriver=='psycopg2':
 
   def final_cleanup():
     pass
+
+  def autocommit_off(conn):
+    conn.autocommit=False
 elif dbdriver=='pyodbc':
   import pyodbc
   connfunc=pyodbc.connect
@@ -54,6 +60,9 @@ elif dbdriver=='pyodbc':
 
   def final_cleanup():
     pass
+
+  def autocommit_off(conn):
+    conn.autocommit=False
 else:
   raise Exception("Invalid dbdriver")
 
@@ -444,10 +453,7 @@ class CallbackTests(unittest.TestCase):
     """Test behavior of healthcheck when autocommit is disabled."""
     with self.createpool(poolmin=1,poolmax=5,poolinit=5) as pool:
       with contextlib.closing(pool.getconnection()) as conn:
-        if dbdriver=='sqlite3':
-          conn.isolation_level=None
-        elif dbdriver in ('psycopg2','pyodbc'):
-          conn.autocommit=True
+        autocommit_off(conn)
         r=conn._member.healthcheck()
         self.assertTrue(r)
 
