@@ -63,6 +63,21 @@ elif dbdriver=='pyodbc':
 
   def autocommit_off(conn):
     conn.autocommit=False
+elif dbdriver=='mariadb':
+  import mariadb
+  connfunc=mariadb.connect
+  connargs=list()
+  connkwargs={'user': 'root', 'database': 'mysql'}
+  hasdual=True
+
+  def driver_cleanup():
+    pass
+
+  def final_cleanup():
+    pass
+
+  def autocommit_off(conn):
+    conn.autocommit=False
 else:
   raise Exception("Invalid dbdriver")
 
