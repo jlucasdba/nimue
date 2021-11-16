@@ -25,15 +25,32 @@ import logging
 logger = logging.getLogger(__name__)
 
 def healthcheck_callback_std(conn,dbmodule):
-  """Standard healthcheck callback for SQLite, Postgres, MSSQL, etc. Runs SELECT 1 as the check query."""
+  """
+  Standard healthcheck callback for SQLite, Postgres, MSSQL, etc. Runs SELECT 1 as the check query.
+  :param conn: The raw connection being healthchecked.
+  :param dbmodule: The db driver module conn is derived from. Provided for access to driver-specific exceptions.
+  """
   return healthcheck_callback_base(conn,dbmodule,"SELECT 1")
 
 def healthcheck_callback_oracle(conn,dbmodule):
-  """Healthcheck callback for Oracle. Runs SELECT 1 FROM DUAL as the check query."""
+  """
+  Healthcheck callback for Oracle. Runs SELECT 1 FROM DUAL as the check query.
+  :param conn: The raw connection being healthchecked.
+  :param dbmodule: The db driver module conn is derived from. Provided for access to driver-specific exceptions.
+  """
   return healthcheck_callback_base(conn,dbmodule,"SELECT 1 FROM DUAL")
 
 def healthcheck_callback_base(conn,dbmodule,query):
-  """Healthcheck logic the other builtin functions call. Can be used to implement a healthcheck with a custom query."""
+  """
+  Healthcheck logic the other builtin functions call. Can be used to implement a healthcheck with a custom query.
+  :param conn: The raw connection being healthchecked.
+  :param dbmodule: The db driver module conn is derived from. Provided for access to driver-specific exceptions.
+  :param query: Custom healthcheck query.
+
+  This function should be called by a user-defined healthcheck callback function with a custom query. For example::
+    def myhealthcheck(conn,dbmodule):
+      return healthcheck_callback_base(conn,dbmodule,"select * from mytable")
+  """
   try:
     with contextlib.closing(conn.cursor()) as curs:
       curs.execute(query)
