@@ -54,6 +54,8 @@ def healthcheck_callback_base(conn,dbmodule,query):
   try:
     with contextlib.closing(conn.cursor()) as curs:
       curs.execute(query)
+      # some drivers don't like closing a cursor with unfetched rows
+      curs.fetchall()
     conn.rollback()
   except dbmodule.OperationalError:
     return False
