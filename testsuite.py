@@ -395,6 +395,7 @@ class ConnectionTests(unittest.TestCase):
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testCloseWithClosedPool(self,FakeThread):
+    """Test connection close when pool is already closed."""
     pool=self.createpool(poolmin=1,poolmax=5,poolinit=5)
     conn=pool.getconnection()
     curs=conn.cursor()
@@ -417,6 +418,7 @@ class CallbackTests(unittest.TestCase):
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testStdHealthcheck(self,FakeThread):
+    """Test healthcheck_callback_std"""
     with self.createpool(poolmin=1,poolmax=5,poolinit=5) as pool:
       with contextlib.closing(pool.getconnection()) as conn:
         r=conn._member.healthcheck()
@@ -424,6 +426,7 @@ class CallbackTests(unittest.TestCase):
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testOracleHealthcheck(self,FakeThread):
+    """Test healthcheck_callback_oracle"""
     with self.createpool(poolmin=1,poolmax=5,poolinit=5,healthcheck_on_getconnection=False,healthcheck_callback=nimue.callback.healthcheck_callback_oracle) as pool:
       with contextlib.closing(pool.getconnection()) as conn:
         with contextlib.ExitStack() as stack:
@@ -438,6 +441,7 @@ class CallbackTests(unittest.TestCase):
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testRollbackAutocommit(self,FakeThread):
+    """Test behavior of healthcheck when autocommit is disabled."""
     with self.createpool(poolmin=1,poolmax=5,poolinit=5) as pool:
       with contextlib.closing(pool.getconnection()) as conn:
         if dbdriver=='sqlite3':
