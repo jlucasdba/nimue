@@ -122,7 +122,7 @@ class PoolTests(unittest.TestCase):
           x.append(pool.getconnection())
           stack.push(contextlib.closing(x[-1]))
         self.assertEqual(pool.poolstats().poolsize,4)
-    
+
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testIdleCleanup(self,FakeThread):
     """Test cleanup of idle connections."""
