@@ -11,6 +11,7 @@ import threading
 import time
 
 from . import callback
+from . import error
 
 logger = logging.getLogger(__name__)
 
@@ -67,21 +68,21 @@ class NimueConnectionPool:
 
     # parameter validations
     if poolmin < 0:
-      raise Exception("Value for poolmin cannot be less than 0")
+      raise error.NimueInvalidParameterValue("Value for poolmin cannot be less than 0")
     if poolinit is not None and  poolinit < poolmin:
-      raise Exception("Value for poolinit cannot be less than poolmin during initialization")
+      raise error.NimueInvalidParameterValue("Value for poolinit cannot be less than poolmin during initialization")
     if poolmax < 1:
-      raise Exception("Value for poolmax cannot be less than 1")
+      raise error.NimueInvalidParameterValue("Value for poolmax cannot be less than 1")
     if poolinit is not None and poolmax < poolinit:
-      raise Exception("Value for poolmax cannot be less than value for poolinit during initialization")
+      raise error.NimueInvalidParameterValue("Value for poolmax cannot be less than value for poolinit during initialization")
     if poolmax < poolmin:
-      raise Exception("Value for poolmax cannot be less than value for poolmin")
+      raise error.NimueInvalidParameterValue("Value for poolmax cannot be less than value for poolmin")
     if cleanup_interval <= 0:
-      raise Exception("Value for cleanup_interval must be greater than 0")
+      raise error.NimueInvalidParameterValue("Value for cleanup_interval must be greater than 0")
     if idle_timeout < 0:
-      raise Exception("Value for idle_timeout cannot be less than 0")
+      raise error.NimueInvalidParameterValue("Value for idle_timeout cannot be less than 0")
     if not callable(healthcheck_callback):
-      raise Exception("Value for healthcheck_callback must be callable")
+      raise error.NimueInvalidParameterValue("Value for healthcheck_callback must be callable")
 
     # set internal values from parameters
     self._connfunc=connfunc
@@ -164,9 +165,9 @@ class NimueConnectionPool:
   @poolmin.setter
   def poolmin(self,val):
     if val < 0:
-      raise Exception("Value for poolmin cannot be less than 0")
+      raise error.NimueInvalidParameterValue("Value for poolmin cannot be less than 0")
     if val > self.poolmax:
-      raise Exception("Value for poolmin cannot be greater than value for poolmax")
+      raise error.NimueInvalidParameterValue("Value for poolmin cannot be greater than value for poolmax")
     with self._lock:
       self._poolmin=val
 
@@ -180,9 +181,9 @@ class NimueConnectionPool:
   @poolmax.setter
   def poolmax(self,val):
     if val < 1:
-      raise Exception("Value for poolmax cannot be less than 1")
+      raise error.NimueInvalidParameterValue("Value for poolmax cannot be less than 1")
     if val < self.poolmin:
-      raise Exception("Value for poolmax cannot be less than value for poolmin")
+      raise error.NimueInvalidParameterValue("Value for poolmax cannot be less than value for poolmin")
     with self._lock:
       self._poolmax=val
 
@@ -195,7 +196,7 @@ class NimueConnectionPool:
   @cleanup_interval.setter
   def cleanup_interval(self,val):
     if val <= 0:
-      raise Exception("Value for cleanup_interval must be greater than 0")
+      raise error.NimueInvalidParameterValue("Value for cleanup_interval must be greater than 0")
     with self._lock:
       self._cleanup_interval=val
 
@@ -208,7 +209,7 @@ class NimueConnectionPool:
   @idle_timeout.setter
   def idle_timeout(self,val):
     if val < 0:
-      raise Exception("Value for idle_timeout cannot be less than 0")
+      raise error.NimueInvalidParameterValue("Value for idle_timeout cannot be less than 0")
     with self._lock:
       self._idle_timeout=val
 
@@ -292,7 +293,7 @@ class NimueConnectionPool:
         if 'connect' in dir(dbmodule):
           return dbmodule
         del components[-1]
-      raise Exception("Could not determine main dbmodule")
+      raise error.NimueDBModuleFailure("Could not determine main dbmodule")
 
   def getconnection(self,blocking=True,timeout=None):
     """
@@ -305,10 +306,12 @@ class NimueConnectionPool:
     If blocking is set to False, a getconnection attempts to return a free connection from the pool. If all connections are in use, and no more can be added, None is returned. Otherwise, If healthcheck_on_getconnection is set for the pool, a connection will be healthchecked before being returned to the caller. If the healthcheck fails, another connection will be tried (and the original connection discarded from the pool). If all available connections fail their healthcheck, a single new connection attempt will be made. If this attempt fails, an Exception will be raised (see below). If the connection succeeds, but the new connection subsequently fails its healthcheck, None is returned. If healthcheck_on_getconnection is set to False, behavior is similar, but connections will not be healthchecked. In this case an unhealthy connection may be returned to the caller, and it is the caller's responsibility to handle that case.
     If blocking is set to True, behavior is same as described above, but if no connections are available, the method will block until one becomes available. Also, if healthcheck_on_getconnection is True, and a new connection needs to be opened, a failed healthcheck on the new connection will retry repeatedly until a healthy connection can be obtained. An Exception may still be raised on a total failure to connect however (see below). If a timeout is also specified, the above behavior continues until the timeout is elapsed. If no connection could be obtained, None is returned, as when blocking is set to False.
 
+    :raises NimueInvalidParameterValue: If timeout is set to an invalid value.
+
     :raises Exception: If there are no available connections in the pool, and there is sufficient capacity, a new connection attempt is made. Opening the new connection could raise an exception (from the database driver). In this case, the calling code is responsible for catching the exception and retrying.
     """
     if timeout is not None and timeout < 0:
-      raise Exception("Timeout must be 0 or greater")
+      raise error.NimueInvalidParameterValue("Timeout must be 0 or greater")
     if timeout is None:
       timeout=-1  # this is the value Lock expects
 
@@ -324,7 +327,7 @@ class NimueConnectionPool:
       stack.push(self._lock)
       # if _exitevent has been set, the pool is being torn down, so raise an exception
       if self._exitevent.is_set():
-        raise Exception("Pool %s has already been closed." % self)
+        raise error.NimuePoolClosedError("Pool %s has already been closed." % self)
 
       badnewconns=0
       while True:
