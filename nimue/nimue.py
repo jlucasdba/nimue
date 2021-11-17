@@ -299,7 +299,7 @@ class NimueConnectionPool:
     Return a connection from the pool.
 
     :param blocking: Whether to block if no connections are available. Defaults to True, meaning calls may block.
-    :param timeout: Timeout after which call will return None if no connections are available. No effect if blocking is False. Must be 0 or greater.
+    :param timeout: Timeout after which call will return None if no connections are available. No effect if blocking is False. Must be 0 or greater, or None.
 
     :returns: Returns a NimueConnection object, or None if one is not available.
     If blocking is set to False, a getconnection attempts to return a free connection from the pool. If all connections are in use, and no more can be added, None is returned. Otherwise, If healthcheck_on_getconnection is set for the pool, a connection will be healthchecked before being returned to the caller. If the healthcheck fails, another connection will be tried (and the original connection discarded from the pool). If all available connections fail their healthcheck, a single new connection attempt will be made. If this attempt fails, an Exception will be raised (see below). If the connection succeeds, but the new connection subsequently fails its healthcheck, None is returned. If healthcheck_on_getconnection is set to False, behavior is similar, but connections will not be healthchecked. In this case an unhealthy connection may be returned to the caller, and it is the caller's responsibility to handle that case.
