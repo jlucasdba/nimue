@@ -302,25 +302,88 @@ class PoolTests(unittest.TestCase):
         self.assertTrue(isinstance(conn,nimue.NimueConnection))
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
-  def testGetAtFreeZero(self,FakeThread):
-    """Test getconnection when no free connections"""
+  def testGetAtFreeZeroBlocking(self,FakeThread):
+    """Test getconnection when no free connections in blocking mode"""
     with self.createpool(poolmin=1,poolmax=5,poolinit=1) as pool:
       self.assertEqual(pool.poolstats().poolsize,1)
       self.assertEqual(pool.poolstats().poolused,0)
       self.assertEqual(pool.poolstats().poolfree,1)
-      with contextlib.closing(pool.getconnection()) as conn:
+      with contextlib.closing(pool.getconnection(blocking=True)) as conn:
         self.assertTrue(isinstance(conn,nimue.NimueConnection))
         self.assertEqual(pool.poolstats().poolsize,1)
         self.assertEqual(pool.poolstats().poolused,1)
         self.assertEqual(pool.poolstats().poolfree,0)
-        with contextlib.closing(pool.getconnection()) as conn2:
+        with contextlib.closing(pool.getconnection(blocking=True)) as conn2:
+          self.assertTrue(isinstance(conn2,nimue.NimueConnection))
           self.assertEqual(pool.poolstats().poolsize,2)
           self.assertEqual(pool.poolstats().poolused,2)
           self.assertEqual(pool.poolstats().poolfree,0)
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testGetAtFreeZeroNonBlocking(self,FakeThread):
+    """Test getconnection when no free connections in non-blocking mode"""
+    with self.createpool(poolmin=1,poolmax=5,poolinit=1) as pool:
+      self.assertEqual(pool.poolstats().poolsize,1)
+      self.assertEqual(pool.poolstats().poolused,0)
+      self.assertEqual(pool.poolstats().poolfree,1)
+      with contextlib.closing(pool.getconnection(blocking=False)) as conn:
+        self.assertTrue(isinstance(conn,nimue.NimueConnection))
+        self.assertEqual(pool.poolstats().poolsize,1)
+        self.assertEqual(pool.poolstats().poolused,1)
+        self.assertEqual(pool.poolstats().poolfree,0)
+        with contextlib.closing(pool.getconnection(blocking=False)) as conn2:
+          self.assertTrue(isinstance(conn2,nimue.NimueConnection))
+          self.assertEqual(pool.poolstats().poolsize,2)
+          self.assertEqual(pool.poolstats().poolused,2)
+          self.assertEqual(pool.poolstats().poolfree,0)
+
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testGetAtFreeZeroBlockingBadHealthcheck(self,FakeThread):
+    """Test getconnection when no free connections in blocking mode, with failing healthcheck"""
+    with self.createpool(poolmin=1,poolmax=5,poolinit=1) as pool:
+      self.assertEqual(pool.poolstats().poolsize,1)
+      self.assertEqual(pool.poolstats().poolused,0)
+      self.assertEqual(pool.poolstats().poolfree,1)
+      with contextlib.closing(pool.getconnection(blocking=True)) as conn:
+        self.assertTrue(isinstance(conn,nimue.NimueConnection))
+        self.assertEqual(pool.poolstats().poolsize,1)
+        self.assertEqual(pool.poolstats().poolused,1)
+        self.assertEqual(pool.poolstats().poolfree,0)
+        with unittest.mock.patch.object(nimue.nimue._NimueConnectionPoolMember, 'healthcheck', return_value=False) as mock_method:
+          with contextlib.ExitStack() as stack:
+            conn2=pool.getconnection(blocking=True)
+            if conn2 is not None:
+              stack.push(contextlib.closing(conn2))
+            self.assertTrue(conn2 is None)
+            self.assertEqual(pool.poolstats().poolsize,1)
+            self.assertEqual(pool.poolstats().poolused,1)
+            self.assertEqual(pool.poolstats().poolfree,0)
+
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testGetAtFreeZeroNonBlockingBadHealthcheck(self,FakeThread):
+    """Test getconnection when no free connections in non-blocking mode, with failing healthcheck"""
+    with self.createpool(poolmin=1,poolmax=5,poolinit=1) as pool:
+      self.assertEqual(pool.poolstats().poolsize,1)
+      self.assertEqual(pool.poolstats().poolused,0)
+      self.assertEqual(pool.poolstats().poolfree,1)
+      with contextlib.closing(pool.getconnection(blocking=False)) as conn:
+        self.assertTrue(isinstance(conn,nimue.NimueConnection))
+        self.assertEqual(pool.poolstats().poolsize,1)
+        self.assertEqual(pool.poolstats().poolused,1)
+        self.assertEqual(pool.poolstats().poolfree,0)
+        with unittest.mock.patch.object(nimue.nimue._NimueConnectionPoolMember, 'healthcheck', return_value=False) as mock_method:
+          with contextlib.ExitStack() as stack:
+            conn2=pool.getconnection(blocking=False)
+            if conn2 is not None:
+              stack.push(contextlib.closing(conn2))
+            self.assertTrue(conn2 is None)
+            self.assertEqual(pool.poolstats().poolsize,1)
+            self.assertEqual(pool.poolstats().poolused,1)
+            self.assertEqual(pool.poolstats().poolfree,0)
+
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testGetAtMaxZeroTimeout(self,FakeThread):
-    """Test getconnection when pool is at max size, with zero timeout"""
+    """Test blocking getconnection when pool is at max size, with zero timeout"""
     x=[]
     with self.createpool(poolmin=1,poolmax=5,poolinit=5) as pool:
       self.assertEqual(pool.poolstats().poolsize,5)
@@ -346,7 +409,7 @@ class PoolTests(unittest.TestCase):
 
   @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
   def testGetAtMaxNonZeroTimeout(self,FakeThread):
-    """Test getconnection when pool is at max size, with (small) non-zero timeout"""
+    """Test blocking getconnection when pool is at max size, with (small) non-zero timeout"""
     x=[]
     with self.createpool(poolmin=1,poolmax=5,poolinit=5) as pool:
       self.assertEqual(pool.poolstats().poolsize,5)
@@ -363,6 +426,32 @@ class PoolTests(unittest.TestCase):
         self.assertEqual(pool.poolstats().poolused,5)
         self.assertEqual(pool.poolstats().poolfree,0)
         x.append(pool.getconnection(timeout=.25))
+        if x[-1] is not None:
+          stack.push(contextlib.closing(x[-1]))
+        self.assertTrue(x[-1] is None)
+        self.assertEqual(pool.poolstats().poolsize,5)
+        self.assertEqual(pool.poolstats().poolused,5)
+        self.assertEqual(pool.poolstats().poolfree,0)
+
+  @unittest.mock.patch('nimue.nimue._NimueCleanupThread')
+  def testGetAtMaxZeroTimeoutNonBlocking(self,FakeThread):
+    """Test non-blocking getconnection when pool is at max size"""
+    x=[]
+    with self.createpool(poolmin=1,poolmax=5,poolinit=5) as pool:
+      self.assertEqual(pool.poolstats().poolsize,5)
+      self.assertEqual(pool.poolstats().poolused,0)
+      self.assertEqual(pool.poolstats().poolfree,5)
+      with contextlib.ExitStack() as stack:
+        for i in range(0,5):
+          self.assertEqual(pool.poolstats().poolsize,5)
+          self.assertEqual(pool.poolstats().poolused,0+i)
+          self.assertEqual(pool.poolstats().poolfree,5-i)
+          x.append(pool.getconnection())
+          stack.push(contextlib.closing(x[-1]))
+        self.assertEqual(pool.poolstats().poolsize,5)
+        self.assertEqual(pool.poolstats().poolused,5)
+        self.assertEqual(pool.poolstats().poolfree,0)
+        x.append(pool.getconnection(blocking=False))
         if x[-1] is not None:
           stack.push(contextlib.closing(x[-1]))
         self.assertTrue(x[-1] is None)
