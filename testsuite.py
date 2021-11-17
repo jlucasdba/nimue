@@ -103,6 +103,23 @@ elif dbdriver=='mysql.connector':
 
   def autocommit_off(conn):
     conn.autocommit=False
+elif dbdriver=='cx_Oracle':
+  import cx_Oracle
+  connfunc=cx_Oracle.connect
+  connargs=list()
+  connkwargs={'user': 'testuser', 'password': 'testuser', 'dsn': 'dev9.lan/dev9db01'}
+  poolkwargs={'healthcheck_callback': nimue.callback.healthcheck_callback_oracle}
+  hasdual=True
+  notaballowed=False
+
+  def driver_cleanup():
+    pass
+
+  def final_cleanup():
+    pass
+
+  def autocommit_off(conn):
+    conn.autocommit=False
 else:
   raise Exception("Invalid dbdriver")
 
