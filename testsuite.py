@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2021 James Lucas
+# Copyright (c) 2021-2022 James Lucas
 
 import contextlib
 import logging

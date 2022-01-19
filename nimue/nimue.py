@@ -1,4 +1,4 @@
-# Copyright (c) 2021 James Lucas
+# Copyright (c) 2021-2022 James Lucas
 
 """
 Submodule implementing core functionality.  Import "nimue" instead of importing this directly.
