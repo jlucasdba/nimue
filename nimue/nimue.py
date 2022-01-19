@@ -320,7 +320,7 @@ class NimueConnectionPool:
     r=self._lock.acquire(blocking,timeout)
     # If we weren't able to acquire the lock in given timeframe, give up
     if not r:
-      return None
+      raise error.NimueNoConnectionAvailable("Timeout expired acquiring lock on pool.")
 
     # At this point we have the lock - the context manager ensures we release it
     with contextlib.ExitStack() as stack:
@@ -347,8 +347,10 @@ class NimueConnectionPool:
           # if we've been failing healthchecks on new connections though, check if
           # we are over time or in nonblocking mode
           if badnewconns > 0:
-            if (blocking and timeout-(time.monotonic()-entertime) <= 0) or not blocking:
-              return None
+            if (blocking and timeout-(time.monotonic()-entertime) <= 0):
+              raise error.NimueNoConnectionAvailable("Timeout expired trying to obtain a healthy connection.")
+            if not blocking:
+              raise error.NimueNoConnectionAvailable("Could not obtain a healthy connection.")
           self._addconnection()
           member=self._free.pop(0)
           if self._healthcheck_on_getconnection:
@@ -364,14 +366,14 @@ class NimueConnectionPool:
         # (or give up if blocking is False)
         else:
           if not blocking:
-            return None
+            raise error.NimueNoConnectionAvailable("All connections currently in use.")
           # if timeout is -1, block indefinitely, else block for the remaining time
           if timeout == -1:
             r=self._lock.wait_for(lambda: len(self._free) > 0,None)
           else:
             r=self._lock.wait_for(lambda: len(self._free) > 0,timeout-(time.monotonic()-entertime))
           if not r:
-            return None
+            raise error.NimueNoConnectionAvailable("Timeout expired waiting for an available connection.")
           # At this point, there might be a connection available, so do nothing, go
           # back to the top of the loop, and hopefully get a connection
 

@@ -368,7 +368,9 @@ class PoolTests(unittest.TestCase):
         self.assertEqual(pool.poolstats().poolfree,0)
         with unittest.mock.patch.object(nimue.nimue._NimueConnectionPoolMember, 'healthcheck', return_value=False) as mock_method:
           with contextlib.ExitStack() as stack:
-            conn2=pool.getconnection(blocking=True)
+            conn2=None
+            with self.assertRaises(nimue.error.NimueNoConnectionAvailable):
+              conn2=pool.getconnection(blocking=True)
             if conn2 is not None:
               stack.push(contextlib.closing(conn2))
             self.assertTrue(conn2 is None)
@@ -390,7 +392,9 @@ class PoolTests(unittest.TestCase):
         self.assertEqual(pool.poolstats().poolfree,0)
         with unittest.mock.patch.object(nimue.nimue._NimueConnectionPoolMember, 'healthcheck', return_value=False) as mock_method:
           with contextlib.ExitStack() as stack:
-            conn2=pool.getconnection(blocking=False)
+            conn2=None
+            with self.assertRaises(nimue.error.NimueNoConnectionAvailable):
+              conn2=pool.getconnection(blocking=False)
             if conn2 is not None:
               stack.push(contextlib.closing(conn2))
             self.assertTrue(conn2 is None)
@@ -416,10 +420,12 @@ class PoolTests(unittest.TestCase):
         self.assertEqual(pool.poolstats().poolsize,5)
         self.assertEqual(pool.poolstats().poolused,5)
         self.assertEqual(pool.poolstats().poolfree,0)
-        x.append(pool.getconnection(timeout=0))
-        if x[-1] is not None:
+        l=len(x)
+        with self.assertRaises(nimue.error.NimueNoConnectionAvailable):
+          x.append(pool.getconnection(timeout=0))
+        if len(x) > l:
           stack.push(contextlib.closing(x[-1]))
-        self.assertTrue(x[-1] is None)
+        self.assertEqual(len(x),l)
         self.assertEqual(pool.poolstats().poolsize,5)
         self.assertEqual(pool.poolstats().poolused,5)
         self.assertEqual(pool.poolstats().poolfree,0)
@@ -442,10 +448,12 @@ class PoolTests(unittest.TestCase):
         self.assertEqual(pool.poolstats().poolsize,5)
         self.assertEqual(pool.poolstats().poolused,5)
         self.assertEqual(pool.poolstats().poolfree,0)
-        x.append(pool.getconnection(timeout=.25))
-        if x[-1] is not None:
+        l=len(x)
+        with self.assertRaises(nimue.error.NimueNoConnectionAvailable):
+          x.append(pool.getconnection(timeout=.25))
+        if len(x) > l:
           stack.push(contextlib.closing(x[-1]))
-        self.assertTrue(x[-1] is None)
+        self.assertEqual(len(x),l)
         self.assertEqual(pool.poolstats().poolsize,5)
         self.assertEqual(pool.poolstats().poolused,5)
         self.assertEqual(pool.poolstats().poolfree,0)
@@ -468,10 +476,12 @@ class PoolTests(unittest.TestCase):
         self.assertEqual(pool.poolstats().poolsize,5)
         self.assertEqual(pool.poolstats().poolused,5)
         self.assertEqual(pool.poolstats().poolfree,0)
-        x.append(pool.getconnection(blocking=False))
-        if x[-1] is not None:
+        l=len(x)
+        with self.assertRaises(nimue.error.NimueNoConnectionAvailable):
+          x.append(pool.getconnection(blocking=False))
+        if len(x) > l:
           stack.push(contextlib.closing(x[-1]))
-        self.assertTrue(x[-1] is None)
+        self.assertEqual(len(x),l)
         self.assertEqual(pool.poolstats().poolsize,5)
         self.assertEqual(pool.poolstats().poolused,5)
         self.assertEqual(pool.poolstats().poolfree,0)

@@ -13,3 +13,7 @@ class NimueDBModuleFailure(Exception):
 class NimuePoolClosedError(Exception):
   """Indicates an operation was attempted on a pool that was already closed."""
   pass
+
+class NimueNoConnectionAvailable(Exception):
+  """Raised when getconnection() fails to return a connection, due to timeout or another reason."""
+  pass
