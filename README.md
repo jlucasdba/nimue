@@ -42,7 +42,7 @@ Although not specified by PEP 249, all the major database drivers use Connection
 ### Status
 Nimue is currently in a pre-release state. Core functionality should all work, and the interface will probably remain mostly stable, but no promises until 1.0. In particular, all errors raise raw Exception right now - custom exception classes remain to be added.
 
-Also worth noting so far Nimue has mostly been tested against sqlite3 and psycopg2 drivers. There shouldn't be major issues with other DBAPI compliant drivers, but needs further testing.
+Also worth noting so far Nimue has mostly been tested against sqlite3 and psycopg2 drivers. Limited testing has been done with all the drivers listed in the testsuite. There shouldn't be major issues with any DBAPI compliant drivers.
 
 ### Driver-Specific Notes
 #### sqlite3
