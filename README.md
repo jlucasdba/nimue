@@ -44,6 +44,13 @@ Nimue is currently in a pre-release state. Core functionality should all work, a
 
 Also worth noting so far Nimue has mostly been tested against sqlite3 and psycopg2 drivers. There shouldn't be major issues with other DBAPI compliant drivers, but needs further testing.
 
+### Driver-Specific Notes
+#### sqlite3
+The sqlite3.connect() keyword arg check_same_thread must be set to False. Otherwise multi-threaded access won't be allowed for connections.
+
+#### Oracle
+The healthcheck_callback should be set to nimue.callback.healthcheck_callback_oracle (or an appropriate custom healthcheck). The default healthcheck callback (nimue.callback.healthcheck_callback_std) won't work on Oracle.
+
 #### TODO
 - Full documentation
 - SQLAlchemy interoperability
