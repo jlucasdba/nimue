@@ -20,7 +20,7 @@ Other Public Classes
 * ``NimueConnection`` Returned by getconnection(). Wraps a raw database connection, and returns it to the pool when closed.
 * ``NimueConnectionPoolStats`` Returned by the pool getstats() method. Contains fields describing pool runtime statistics, suitable for monitoring.
 
-See nimue.nimue for the details API.
+See nimue.nimue for the detailed API.
 """
 
 from nimue.nimue import *
