@@ -56,6 +56,8 @@ class NimueConnectionPool:
     :healthcheck_on_getconnection: If True, perform a healthcheck on getconnection from the pool. If the check fails, the connection is discarded from the pool, and the method continues trying connections until a healthy one can be returned (or until timeout occurs, if set). Defaults to True.
 
     :returns: Returns a NimueConnectionPool object.
+
+    :raises NimueInvalidParameterValue: If an invalid parameter value is found.
     """
     # define these early because otherwise the validation checks
     # will cause cascading exceptions on failure
@@ -158,7 +160,11 @@ class NimueConnectionPool:
 
   @property
   def poolmin(self):
-    """Minimum size of the pool. Can be updated. Cannot be set less than 0, nor set greater than poolmax. Update poolmax first if necessary."""
+    """
+    Minimum size of the pool. Can be updated. Cannot be set less than 0, nor set greater than poolmax. Update poolmax first if necessary.
+
+    :raises NimueInvalidParameterValue: If attempting to set value less than 0 or greater than poolmax.
+    """
     with self._lock:
       return self._poolmin
 
@@ -173,8 +179,12 @@ class NimueConnectionPool:
 
   @property
   def poolmax(self):
-    """Maximum size of the pool. Can be updated. Cannot be set less than 1, nor set less than poolmin. Free connections in excess
-       of max will be closed on the next cleanup run."""
+    """
+    Maximum size of the pool. Can be updated. Cannot be set less than 1, nor set less than poolmin.
+    Free connections in excess of max will be closed on the next cleanup run.
+
+    :raises NimueInvalidParameterValue: If attempting to set value less than 1 or less than poolmin (whichever is greater).
+    """
     with self._lock:
       return self._poolmax
 
@@ -189,7 +199,11 @@ class NimueConnectionPool:
 
   @property
   def cleanup_interval(self):
-    """Wakeup interval for cleanup thread, in seconds. Can be updated. Must be greater than 0."""
+    """
+    Wakeup interval for cleanup thread, in seconds. Can be updated. Must be greater than 0.
+
+    :raises NimueInvalidParameterValue: If attempting to set to value that is not greater than 0.
+    """
     with self._lock:
       return self._cleanup_interval
 
@@ -202,7 +216,11 @@ class NimueConnectionPool:
 
   @property
   def idle_timeout(self):
-    """Idle timeout in seconds, after which idle connections are eligible for cleanup. Can be updated. Cannot be less than 0."""
+    """
+    Idle timeout in seconds, after which idle connections are eligible for cleanup. Can be updated. Cannot be less than 0.
+
+    :raises NimueInvalidParameterValue: If attempting to set value less than 0.
+    """
     with self._lock:
       return self._idle_timeout
 
