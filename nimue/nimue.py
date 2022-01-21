@@ -307,8 +307,8 @@ class NimueConnectionPool:
     If blocking is set to True, behavior is same as described above, but if no connections are available, the method will block until one becomes available. Also, if healthcheck_on_getconnection is True, and a new connection needs to be opened, a failed healthcheck on the new connection will retry repeatedly until a healthy connection can be obtained. An Exception may still be raised on a total failure to connect however (see below). If a timeout is also specified, the above behavior continues until the timeout is elapsed. If no connection could be obtained, None is returned, as when blocking is set to False.
 
     :raises NimueInvalidParameterValue: If timeout is set to an invalid value.
-
-    :raises Exception: If there are no available connections in the pool, and there is sufficient capacity, a new connection attempt is made. Opening the new connection could raise an exception (from the database driver). In this case, the calling code is responsible for catching the exception and retrying.
+    :raises NimuePoolClosedError: If a connection is requested from a pool that has already been closed.
+    :raises NimueNoConnectionAvailable: If there are no available connections in the pool, and there is sufficient capacity, a new connection attempt is made. Opening the new connection could raise an exception (from the database driver). In this case, the calling code is responsible for catching the exception and retrying.
     """
     if timeout is not None and timeout < 0:
       raise error.NimueInvalidParameterValue("Timeout must be 0 or greater")
