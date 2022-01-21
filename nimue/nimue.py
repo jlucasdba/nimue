@@ -409,8 +409,8 @@ class NimueConnectionPool:
 
   def close(self):
     """
-    Close the connection pool, and shutdown the associated cleanup thread. Note that this method will block until all outstanding connections
-    have been returned to the pool.
+    Close the connection pool, and shutdown the associated cleanup thread. Note that this method will block
+    until all outstanding connections have been returned to the pool.
     """
     # shutdown the cleanup thread
     self._exitevent.set()
